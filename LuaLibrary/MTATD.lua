@@ -2,8 +2,6 @@
 -- PROJECT: MTA:TD - Test and Debug Framework
 --
 -- LICENSE: See LICENSE in top level directory
--- PURPOSE: Shared global variables across the module
+-- PURPOSE: Shared across all MTA:TD modules
 ------------------------------------------------------------
-
--- Namespace for the MTAUnit library
-MTAUnit = {}
+MTATD = {}

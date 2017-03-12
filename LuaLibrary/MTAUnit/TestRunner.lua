@@ -1,5 +1,5 @@
 -----------------------------------------------------------
--- PROJECT: MTA:SA Unit Testing Framework
+-- PROJECT: MTA:TD - Test and Debug Framework
 --
 -- LICENSE: See LICENSE in top level directory
 -- PURPOSE: Finds and runs the tests

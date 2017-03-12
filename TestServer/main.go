@@ -1,19 +1,24 @@
 package main
 
 import (
-	"bufio"
-	"os"
-	"time"
+	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 func main() {
-	server := NewMTAServer("D:\\Dev\\MTA\\mtasa-blue\\Bin\\server\\MTA Server_d.exe")
-	server.Start()
+	// Make root router
+	router := mux.NewRouter()
 
-	time.Sleep(15 * time.Second)
+	// Initialise APIs
+	NewMTAUnitAPI(router.PathPrefix("/MTAUnit").Subrouter())
+	//mtaDebugAPI := NewMTADebugAPI(router.PathPrefix("MTADebug").Subrouter())
 
-	server.ExecCommand("help")
+	// Init and start MTA server
+	// server := NewMTAServer("D:\\Dev\\MTA\\mtasa-blue\\Bin\\server\\MTA Server_d.exe")
+	// server.Start()
 
-	reader := bufio.NewReader(os.Stdin)
-	reader.ReadString('\n')
+	// Start HTTP server
+	http.Handle("/", router)
+	http.ListenAndServe(":8080", nil)
 }

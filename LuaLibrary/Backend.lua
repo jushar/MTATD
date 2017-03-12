@@ -54,5 +54,5 @@ function MTATD.Backend:reportTestResults(testResults)
         -- TODO
     end]]
 
-    self:request("MTADebug/report_test_results", testResults)
+    self:request("MTAUnit/report_test_results", testResults)
 end

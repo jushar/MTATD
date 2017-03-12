@@ -1,0 +1,6 @@
+{
+    "Gang": {
+        "AddPlayer": { "success": true, "message": "" },
+        "DelPlayer": { "success": false, "message": "Expected x got y" }
+    }
+}

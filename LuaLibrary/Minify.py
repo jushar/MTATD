@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import re
 
 # List files here
 OUTPUT_PATH = 'MTATD.bundle.lua'
@@ -17,4 +18,10 @@ with open(OUTPUT_PATH, 'w') as outputFile:
     for path in FILES:
         with open(path) as file:
             for line in file:
-                outputFile.write(line)
+                if line.find('--') == -1:
+                    if not re.match(r'^\s*$', line):
+                        outputFile.write(line
+                            .replace('\n', ' ')
+                            .replace('[[', '')
+                            .replace(']]', '')
+                        )

@@ -1,36 +1,72 @@
 {
-    "name": "mtatd",
-    "displayName": "Extension",
-    "description": "MTA:SA Test and Debug Framework",
-    "version": "0.0.1",
-    "publisher": "jusonex",
-    "engines": {
-        "vscode": "^1.10.0"
-    },
-    "categories": [
-        "Other"
+  "name": "mtatd",
+  "displayName": "Extension",
+  "description": "MTA:SA Test and Debug Framework",
+  "version": "0.0.1",
+  "publisher": "jusonex",
+  "engines": {
+    "vscode": "^1.10.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:extension.startMTA"
+  ],
+  "main": "./out/src/extension",
+  "contributes": {
+    "commands": [
+      {
+        "command": "extension.startMTA",
+        "title": "Start MTA:SA Server"
+      }
     ],
-    "activationEvents": [
-        "onCommand:extension.sayHello"
-    ],
-    "main": "./out/src/extension",
-    "contributes": {
-        "commands": [{
-            "command": "extension.sayHello",
-            "title": "Hello World"
-        }]
-    },
-    "scripts": {
-        "vscode:prepublish": "tsc -p ./",
-        "compile": "tsc -watch -p ./",
-        "postinstall": "node ./node_modules/vscode/bin/install",
-        "test": "node ./node_modules/vscode/bin/test"
-    },
-    "devDependencies": {
-        "typescript": "^2.0.3",
-        "vscode": "^1.0.0",
-        "mocha": "^2.3.3",
-        "@types/node": "^6.0.40",
-        "@types/mocha": "^2.2.32"
-    }
+    "debuggers": [
+      {
+        "type": "mtasa",
+        "label": "MTA:SA Debug",
+        "program": "./out/src/mtasaDebug.js",
+        "runtime": "node",
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "The MTA:SA server path"
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "mtasa",
+            "request": "launch",
+            "name": "Launch MTA:SA",
+            "program": "C:\\Program Files (x86)\\MTA San Andreas 1.5\\server\\MTA Server.exe"
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "tsc -p ./",
+    "compile": "tsc -watch -p ./",
+    "postinstall": "node ./node_modules/vscode/bin/install",
+    "test": "node ./node_modules/vscode/bin/test"
+  },
+  "devDependencies": {
+    "typescript": "^2.0.3",
+    "vscode": "^1.0.0",
+    "mocha": "^2.3.3",
+    "@types/node": "^6.0.40",
+    "@types/mocha": "^2.2.32",
+    "vscode-debugadapter-testsupport": "^1.18.0"
+  },
+  "dependencies": {
+    "vscode-debugadapter": "^1.18.0",
+    "vscode-debugprotocol": "^1.18.0"
+  }
 }

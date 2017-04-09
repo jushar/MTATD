@@ -14,7 +14,7 @@ MTATD.Backend = {}
 -----------------------------------------------------------
 function MTATD.Backend:connect(host, port)
     -- Build base URL
-    self.baseUrl = ("http://%s:%d/"):format(host, port)
+    self._baseUrl = ("http://%s:%d/"):format(host, port)
 
     -- Make initial request to check if the backend is running
     -- TODO
@@ -30,7 +30,7 @@ end
 --       unserialized response arrives
 -----------------------------------------------------------
 function MTATD:request(name, data, callback)
-    return fetchRemote(self.baseUrl..name,
+    return fetchRemote(self._baseUrl..name,
         function(response, errno)
             if errno ~= 0 then
                 error("Could not reach backend")

@@ -8,6 +8,13 @@
 -- Namespace for the MTADebug library
 MTATD.MTADebug = MTATD.Class()
 
+-- Resume mode enumeration
+local ResumeMode = {
+    Resume = 0,
+	Paused = 1,
+	LineStep = 2
+}
+
 -----------------------------------------------------------
 -- Constructs the MTADebug manager
 --
@@ -22,8 +29,7 @@ function MTATD.MTADebug:constructor(backend)
 
     -- Initially fetch the breakpoints from the backend
     -- and wait till they're received
-    self:_fetchBreakpoints()
-    -- TODO: Wait
+    self:_fetchBreakpoints(true)
 
     -- Install debug hook
     debug.sethook(function(...) self:_hookFunction(...) end, "l")
@@ -53,15 +59,20 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
     end
     outputDebugString("Reached breakpoint")
 
+    -- Tell backend that we reached a breakpoint
+    self._backend:request("MTADebug/set_resume_mode", { resume_mode = ResumeMode.Paused })
+
     -- Wait for resume request
     local continue = false
     repeat
         -- Ask backend
-        self._backend:request("MTADebug/should_resume", {},
-            function(shouldResume)
-                outputDebugString("Got response to MTADebug/should_resume")
-                if shouldResume then
+        self._backend:request("MTADebug/get_resume_mode", {},
+            function(info)
+                if info.resume_mode == ResumeMode.Resume then
                     continue = true
+
+                    -- Update breakpoints
+                    self:_fetchBreakpoints(true)
                 end
             end
         )
@@ -69,6 +80,8 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
         -- Sleep a bit (MTA still processes http events internally)
         debugSleep(100)
     until continue
+
+    outputDebugString("Resuming execution...")
 end
 
 -----------------------------------------------------------
@@ -91,17 +104,31 @@ end
 -----------------------------------------------------------
 -- Fetches the breakpoints from the backend and updates
 -- the internally stored list of breakpoints
--- Note that this function updates the BPs asynchronously
+--
+-- wait (bool): true to wait till the response is available,
+--              false otherwise (defaults to 'false')
 -----------------------------------------------------------
-function MTATD.MTADebug:_fetchBreakpoints()
+function MTATD.MTADebug:_fetchBreakpoints(wait)
+    local responseAvailable = false
+
     self._backend:request("MTADebug/get_breakpoints", {},
         function(breakpoints)
+            iprint(breakpoints)
             for k, breakpoint in ipairs(breakpoints) do
                 if not self._breakpoints[breakpoint.file] then
                     self._breakpoints[breakpoint.file] = {}
                 end
                 self._breakpoints[breakpoint.file][breakpoint.line] = true
             end
+
+            responseAvailable = true
         end
     )
+
+    -- Wait
+    if wait then
+        repeat
+            debugSleep(25)
+        until responseAvailable
+    end
 end

@@ -38,10 +38,14 @@ end
 -- data (table): The data that is sent to the backend
 --      (must be serializable using toJSON)
 -- callback (function(responseData)): Called when the
---       unserialized response arrives
+--       unserialized response arrives.
+--       If not provided, returns the response object synchronously
 -----------------------------------------------------------
 function MTATD.Backend:request(name, data, callback)
-    return fetchRemote(self._baseUrl..name,
+    local responseObject = nil
+    local serialized = toJSON(data):gsub("%[(.*)%]", "%1") -- Fix object being embedded into a JSON array
+
+    local result = fetchRemote(self._baseUrl..name,
         function(response, errno)
             if errno ~= 0 then
                 error("Could not reach backend (code "..errno..")")
@@ -49,12 +53,25 @@ function MTATD.Backend:request(name, data, callback)
             end
 
             -- Unserialize response and call callback
+            local obj = fromJSON("["..response.."]")
             if callback then
-                callback(fromJSON("["..response.."]"))
+                callback(obj)
+            else
+                responseObject = obj
             end
         end,
-        toJSON(data)
+        serialized
     )
+
+    if not callback then
+        repeat
+            debugSleep(25)
+        until responseObject ~= nil
+        
+        return responseObject
+    else
+        return result
+    end
 end
 
 function MTATD.Backend:reportTestResults(testResults)

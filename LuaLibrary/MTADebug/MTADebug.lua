@@ -11,8 +11,8 @@ MTATD.MTADebug = MTATD.Class()
 -- Resume mode enumeration
 local ResumeMode = {
     Resume = 0,
-	Paused = 1,
-	LineStep = 2
+    Paused = 1,
+    LineStep = 2
 }
 
 -----------------------------------------------------------
@@ -33,6 +33,18 @@ function MTATD.MTADebug:constructor(backend)
 
     -- Install debug hook
     debug.sethook(function(...) self:_hookFunction(...) end, "l")
+
+    -- Update breakpoint list once per 3 seconds asynchronously
+    self._breakpointUpdateTimer = setTimer(function() self:_fetchBreakpoints() end, 3 * 1000, 0)
+end
+
+-----------------------------------------------------------
+-- Disposes the MTADebug instance (e.g. stops polling)
+-----------------------------------------------------------
+function MTATD.MTADebug:destructor()
+    if self._breakpointUpdateTimer and isTimer(self._breakpointUpdateTimer) then
+        killTimer(self._breakpointUpdateTimer)
+    end
 end
 
 -----------------------------------------------------------

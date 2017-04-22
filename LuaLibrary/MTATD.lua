@@ -16,7 +16,19 @@ function MTATD.Class:new(...)
         obj:constructor(...)
     end
 end
+function MTATD.Class:delete(...)
+    if obj.destructor then
+        obj:destructor(...)
+    end
+end
 
+
+-- Entrypoint function
 function initMTATD()
     MTATD.Backend:new("localhost", 8080)
+end
+
+-- Exitpoint function
+function destroyMTATD()
+    MTATD.Backend:delete()
 end

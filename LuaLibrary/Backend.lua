@@ -21,6 +21,14 @@ function MTATD.Backend:constructor(host, port)
 end
 
 -----------------------------------------------------------
+-- Stops the test and debug framework
+-----------------------------------------------------------
+function MTATD.Backend:destructor()
+    -- Destroy debugger
+    self._debug:delete()
+end
+
+-----------------------------------------------------------
 -- Connects to the backend via HTTP
 --
 -- host (string): The hostname or IP

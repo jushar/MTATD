@@ -12,7 +12,7 @@ func main() {
 
 	// Initialise APIs
 	NewMTAUnitAPI(router.PathPrefix("/MTAUnit").Subrouter())
-	//mtaDebugAPI := NewMTADebugAPI(router.PathPrefix("MTADebug").Subrouter())
+	NewMTADebugAPI(router.PathPrefix("/MTADebug").Subrouter())
 
 	// Init and start MTA server
 	server := NewMTAServer("D:\\Program Files (x86)\\MTA San Andreas 1.5\\server\\MTA Server.exe")

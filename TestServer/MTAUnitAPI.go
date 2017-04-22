@@ -20,12 +20,12 @@ func NewMTAUnitAPI(router *mux.Router) *MTAUnitAPI {
 	api := new(MTAUnitAPI)
 
 	// Register routes
-	router.HandleFunc("/report_test_results", api.Handler_ReportTestResults)
+	router.HandleFunc("/report_test_results", api.handlerReportTestResults)
 
 	return api
 }
 
-func (api *MTAUnitAPI) Handler_ReportTestResults(res http.ResponseWriter, req *http.Request) {
+func (api *MTAUnitAPI) handlerReportTestResults(res http.ResponseWriter, req *http.Request) {
 	// Parse data
 	var testSuiteResults TestSuiteResults
 	err := json.NewDecoder(req.Body).Decode(&testSuiteResults)

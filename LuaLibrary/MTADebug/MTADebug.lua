@@ -6,7 +6,7 @@
 ------------------------------------------------------------
 
 -- Namespace for the MTADebug library
-MTATD.MTADebug = {}
+MTATD.MTADebug = MTATD.Class()
 
 -----------------------------------------------------------
 -- Constructs the MTADebug manager
@@ -18,7 +18,7 @@ function MTATD.MTADebug:constructor(backend)
     self._breakpoints = {}
 
     -- Enable development mode
-    setDevelopmentMode(true, true)
+    --setDevelopmentMode(true, true) -- TODO
 
     -- Initially fetch the breakpoints from the backend
     -- and wait till they're received
@@ -26,7 +26,7 @@ function MTATD.MTADebug:constructor(backend)
     -- TODO: Wait
 
     -- Install debug hook
-    debug.sethook("l", function(...) self:_hookFunction(...) end)
+    debug.sethook(function(...) self:_hookFunction(...) end, "l")
 end
 
 -----------------------------------------------------------
@@ -44,12 +44,14 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
     end
 
     -- Get some debug info
-    local debugInfo = debug.getinfo(2, "S")
+    local debugInfo = debug.getinfo(3, "S")
+    debugInfo.short_src = debugInfo.short_src:gsub("\\", "/")
 
     -- Is there a breakpoint?
     if not self:hasBreakpoint(debugInfo.short_src, nextLineNumber) then
         return
     end
+    outputDebugString("Reached breakpoint")
 
     -- Wait for resume request
     local continue = false
@@ -64,7 +66,8 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
         )
 
         -- Sleep a bit (MTA still processes http events internally)
-        sleep(100)
+        --sleep(100)
+        while true do end
     until continue
 end
 
@@ -91,7 +94,7 @@ end
 -- Note that this function updates the BPs asynchronously
 -----------------------------------------------------------
 function MTATD.MTADebug:_fetchBreakpoints()
-    self._backend:request("MTADebug/fetch_breakpoints", {},
+    self._backend:request("MTADebug/get_breakpoints", {},
         function(breakpoints)
             for k, breakpoint in ipairs(breakpoints) do
                 if not self._breakpoints[breakpoint.file] then

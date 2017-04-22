@@ -15,7 +15,8 @@ func main() {
 	NewMTADebugAPI(router.PathPrefix("/MTADebug").Subrouter())
 
 	// Init and start MTA server
-	server := NewMTAServer("D:\\Program Files (x86)\\MTA San Andreas 1.5\\server\\MTA Server.exe")
+	//server := NewMTAServer("D:\\Program Files (x86)\\MTA San Andreas 1.5\\server\\MTA Server.exe")
+	server := NewMTAServer("D:\\Dev\\MTA\\mtasa-blue\\Bin\\server\\MTA Server_d.exe")
 	server.Start()
 
 	// Start HTTP server

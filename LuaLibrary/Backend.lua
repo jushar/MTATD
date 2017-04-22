@@ -44,7 +44,7 @@ function MTATD.Backend:request(name, data, callback)
     return fetchRemote(self._baseUrl..name,
         function(response, errno)
             if errno ~= 0 then
-                error("Could not reach backend")
+                error("Could not reach backend (code "..errno..")")
                 return
             end
 

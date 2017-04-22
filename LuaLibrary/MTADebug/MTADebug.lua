@@ -59,6 +59,7 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
         -- Ask backend
         self._backend:request("MTADebug/should_resume", {},
             function(shouldResume)
+                outputDebugString("Got response to MTADebug/should_resume")
                 if shouldResume then
                     continue = true
                 end
@@ -66,8 +67,7 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
         )
 
         -- Sleep a bit (MTA still processes http events internally)
-        --sleep(100)
-        while true do end
+        debugSleep(100)
     until continue
 end
 

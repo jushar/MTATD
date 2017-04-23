@@ -125,13 +125,19 @@ function MTATD.MTADebug:_fetchBreakpoints(wait)
 
     self._backend:request("MTADebug/get_breakpoints", {},
         function(breakpoints)
-            iprint(breakpoints)
+            local basePath = self:_getResourceBasePath()
+
             for k, breakpoint in ipairs(breakpoints) do
+                -- Prepend resource base path
+                breakpoint.file = basePath..breakpoint.file
+
                 if not self._breakpoints[breakpoint.file] then
                     self._breakpoints[breakpoint.file] = {}
                 end
                 self._breakpoints[breakpoint.file][breakpoint.line] = true
             end
+            
+            iprint(self._breakpoints)
 
             responseAvailable = true
         end
@@ -142,5 +148,22 @@ function MTATD.MTADebug:_fetchBreakpoints(wait)
         repeat
             debugSleep(25)
         until responseAvailable
+    end
+end
+
+-----------------------------------------------------------
+-- Builds the base path for a resource (the path used
+-- in error messages)
+--
+-- Returns the built base path
+-----------------------------------------------------------
+function MTATD.MTADebug:_getResourceBasePath()
+    local thisResource = getThisResource()
+
+    if triggerClientEvent then -- Is server?
+        local organizationalPath = getResourceOrganizationalPath(thisResource)
+        return getResourceName(thisResource).."/"..(organizationalPath ~= "" and organizationalPath.."/" or "")
+    else
+        return getResourceName(thisResource).."/"
     end
 end

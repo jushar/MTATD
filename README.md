@@ -1,4 +1,6 @@
 # MTA:TD - Testing and Debugger Framework for MTA:SA
+[![Build Status](https://travis-ci.org/Jusonex/MTATD.svg?branch=master)](https://travis-ci.org/Jusonex/MTATD)
+
 ## Usage
 TODO
 

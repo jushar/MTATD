@@ -26,7 +26,7 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 	trace?: boolean;
 }
 
-class MTASADebugSession extends LoggingDebugSession {
+class MTASADebugSession extends DebugSession {
 
 	// we don't support multiple threads, so we can use a hardcoded ID for the default thread
 	private static THREAD_ID = 1;
@@ -36,14 +36,7 @@ class MTASADebugSession extends LoggingDebugSession {
 	private _breakpointId = 1000;
 
 	// This is the next line that will be 'executed'
-	private __currentLine = 0;
-	private get _currentLine() : number {
-		return this.__currentLine;
-    }
-	private set _currentLine(line: number) {
-		this.__currentLine = line;
-		this.log('line', line);
-	}
+	private _currentLine = 0;
 
 	// the initial (and one and only) file we are 'debugging'
 	private _sourceFile: string;
@@ -69,7 +62,7 @@ class MTASADebugSession extends LoggingDebugSession {
 	 * We configure the default implementation of a debug adapter here.
 	 */
 	public constructor() {
-		super("mock-debug.txt");
+		super();
 
 		this.setDebuggerLinesStartAt1(true);
 	}
@@ -79,7 +72,6 @@ class MTASADebugSession extends LoggingDebugSession {
 	 * to interrogate the features the debug adapter provides.
 	 */
 	protected initializeRequest(response: DebugProtocol.InitializeResponse, args: DebugProtocol.InitializeRequestArguments): void {
-
 		// since this debug adapter can accept configuration requests like 'setBreakpoint' at any time,
 		// we request them early by sending an 'initializeRequest' to the frontend.
 		// The frontend will end the configuration sequence by calling 'configurationDone' request.
@@ -94,8 +86,10 @@ class MTASADebugSession extends LoggingDebugSession {
 		this.sendResponse(response);
 	}
 
+	/**
+	 * Called when the debugger is launched (and the debugee started)
+	 */
 	protected launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): void {
-
 		if (args.trace) {
 			Logger.setup(Logger.LogLevel.Verbose, /*logToFile=*/false);
 		}
@@ -110,36 +104,31 @@ class MTASADebugSession extends LoggingDebugSession {
 			this._pollPausedTimer = setInterval(() => { this.checkForPausedTick(); }, 1000);
 	}
 
+	/**
+	 * Called when the editor requests a breakpoint being set
+	 */
 	protected setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments): void {
-
 		const path = args.source.path;
 		const clientLines = args.lines;
 
-		// read file contents into array for direct access
-		//var lines = readFileSync(path).toString().split('\n');
+		// Read file contents into array for direct access
+		const lines = readFileSync(path).toString().split('\n');
 
 		const breakpoints = new Array<Breakpoint>();
 
 		// verify breakpoint locations
 		for (var i = 0; i < clientLines.length; i++) {
-			const l = this.convertClientLineToDebugger(clientLines[i]);
-			/*var verified = false;
+			let l = this.convertClientLineToDebugger(clientLines[i]);
+
 			if (l < lines.length) {
+				// If a line is empty or starts with '+' we don't allow to set a breakpoint but move the breakpoint down
 				const line = lines[l].trim();
-				// if a line is empty or starts with '+' we don't allow to set a breakpoint but move the breakpoint down
-				if (line.length == 0 || line.indexOf("+") == 0)
+				if (line.length == 0 || line.indexOf("--") == 0)
 					l++;
-				// if a line starts with '-' we don't allow to set a breakpoint but move the breakpoint up
-				if (line.indexOf("-") == 0)
-					l--;
-				// don't set 'verified' to true if the line contains the word 'lazy'
-				// in this case the breakpoint will be verified 'lazy' after hitting it once.
-				if (line.indexOf("lazy") < 0) {
-					verified = true;    // this breakpoint has been validated
-				}
-			}*/
-			const verified = true;
-			const bp = <DebugProtocol.Breakpoint> new Breakpoint(verified, this.convertDebuggerLineToClient(l));
+			}
+
+			// Create breakpoint
+			const bp = <DebugProtocol.Breakpoint> new Breakpoint(true, this.convertDebuggerLineToClient(l));
 			bp.id = this._breakpointId++;
 			breakpoints.push(bp);
 
@@ -160,9 +149,11 @@ class MTASADebugSession extends LoggingDebugSession {
 		this.sendResponse(response);
 	}
 
+	/**
+	 * Called to inform the editor about the thread we're using
+	 */
 	protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
-
-		// return the default thread
+		// Return the default thread
 		response.body = {
 			threads: [
 				new Thread(MTASADebugSession.THREAD_ID, "thread 1")
@@ -175,7 +166,6 @@ class MTASADebugSession extends LoggingDebugSession {
 	 * Returns a fake 'stacktrace' where every 'stackframe' is a word from the current line.
 	 */
 	protected stackTraceRequest(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): void {
-
 		const words = this._sourceLines[this._currentLine].trim().split(/\s+/);
 
 		const startFrame = typeof args.startFrame === 'number' ? args.startFrame : 0;
@@ -197,8 +187,10 @@ class MTASADebugSession extends LoggingDebugSession {
 		this.sendResponse(response);
 	}
 
+	/**
+	 * Called to inform the editor about the existing variable scopes
+	 */
 	protected scopesRequest(response: DebugProtocol.ScopesResponse, args: DebugProtocol.ScopesArguments): void {
-
 		const frameReference = args.frameId;
 		const scopes = new Array<Scope>();
 		scopes.push(new Scope("Local", this._variableHandles.create("local_" + frameReference), false));
@@ -211,8 +203,10 @@ class MTASADebugSession extends LoggingDebugSession {
 		this.sendResponse(response);
 	}
 
+	/**
+	 * Called to inform the editor about the values of the variables
+	 */
 	protected variablesRequest(response: DebugProtocol.VariablesResponse, args: DebugProtocol.VariablesArguments): void {
-
 		const variables = [];
 		const id = this._variableHandles.get(args.variablesReference);
 		if (id != null) {
@@ -248,8 +242,10 @@ class MTASADebugSession extends LoggingDebugSession {
 		this.sendResponse(response);
 	}
 
+	/**
+	 * Called when the editor requests the executing to be continued
+	 */
 	protected continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): void {
-		
 		// Send continue request to backend
 		request(this._backendUrl + '/MTADebug/set_resume_mode', {
 			json: { resume_mode: 0 }
@@ -259,8 +255,10 @@ class MTASADebugSession extends LoggingDebugSession {
 		});
 	}
 
+	/**
+	 * Called when a step to the next line is requested
+	 */
 	protected nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): void {
-
 		/*for (let ln = this._currentLine+1; ln < this._sourceLines.length; ln++) {
 			if (this.fireStepEvent(response, ln)) {
 				return;
@@ -272,7 +270,6 @@ class MTASADebugSession extends LoggingDebugSession {
 	}
 
 	protected evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): void {
-
 		response.body = {
 			result: `evaluate(context: '${args.context}', '${args.expression}')`,
 			variablesReference: 0
@@ -280,6 +277,9 @@ class MTASADebugSession extends LoggingDebugSession {
 		this.sendResponse(response);
 	}
 
+	/**
+	 * Polls the backend for the current execution state
+	 */
 	protected checkForPausedTick() {
 		if (!this._isRunning)
 			return;

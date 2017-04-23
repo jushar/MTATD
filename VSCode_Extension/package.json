@@ -30,12 +30,12 @@
         "configurationAttributes": {
           "launch": {
             "required": [
-              "program"
+              "serverpath"
             ],
             "properties": {
-              "program": {
+              "serverpath": {
                 "type": "string",
-                "description": "The MTA:SA server path"
+                "description": "The MTA:SA server path (without 'MTA Server.exe')"
               }
             }
           }
@@ -45,7 +45,7 @@
             "type": "mtasa",
             "request": "launch",
             "name": "Launch MTA:SA",
-            "program": "C:\\Program Files (x86)\\MTA San Andreas 1.5\\server\\MTA Server.exe"
+            "serverpath": "C:\\Program Files (x86)\\MTA San Andreas 1.5\\server"
           }
         ]
       }

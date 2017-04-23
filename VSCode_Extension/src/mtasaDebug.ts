@@ -10,7 +10,7 @@ import {
 } from 'vscode-debugadapter';
 import {DebugProtocol} from 'vscode-debugprotocol';
 import {readFileSync} from 'fs';
-import {basename} from 'path';
+import {basename, normalize} from 'path';
 import * as request from 'request';
 
 
@@ -18,8 +18,8 @@ import * as request from 'request';
  * This interface should always match the schema found in the mock-debug extension manifest.
  */
 export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
-	/** An absolute path to the program to debug. */
-	program: string;
+	/** An absolute path to the MTA server to debug. */
+	serverpath: string;
 	/** Automatically stop target after launch. If not specified, target does not stop. */
 	stopOnEntry?: boolean;
 	/** enable logging the Debug Adapter Protocol */
@@ -35,14 +35,11 @@ class MTASADebugSession extends DebugSession {
 	// so that the frontend can match events with breakpoints.
 	private _breakpointId = 1000;
 
+	// the initial (and one and only) file we are 'debugging'
+	private _currentFile: string;
+
 	// This is the next line that will be 'executed'
 	private _currentLine = 0;
-
-	// the initial (and one and only) file we are 'debugging'
-	private _sourceFile: string;
-
-	// the contents (= lines) of the one and only file
-	private _sourceLines = new Array<string>();
 
 	// maps from sourceFile to array of Breakpoints
 	private _breakPoints = new Map<string, DebugProtocol.Breakpoint[]>();
@@ -53,7 +50,7 @@ class MTASADebugSession extends DebugSession {
 
 	private _backendUrl: string = 'http://localhost:8080';
 
-	private _resourcePath: string = 'D:\\Dev\\MTA\\mtasa-blue\\Bin\\server\\mods\\deathmatch\\resources\\debug\\';
+	private _resourcePath: string;
 
 	private _isRunning: boolean = false;
 
@@ -94,14 +91,24 @@ class MTASADebugSession extends DebugSession {
 			Logger.setup(Logger.LogLevel.Verbose, /*logToFile=*/false);
 		}
 
-		this._sourceFile = 'D:\\Dev\\MTA\\mtasa-blue\\Bin\\server\\mods\\deathmatch\\resources\\debug\\server.lua'; //args.program;
-		this._sourceLines = readFileSync(this._sourceFile).toString().split('\n');
+		// Get info about debuggee
+		request(this._backendUrl + '/MTADebug/get_info', (err, res, body) => {
+			if (err || res.statusCode != 200) {
+				// TODO: Show error
+				return;
+			}
 
-		// we just start to run until we hit a breakpoint or an exception
-		this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: MTASADebugSession.THREAD_ID });
+			// Apply path from response
+			const info = JSON.parse(body);
+			this._resourcePath = normalize(`${args.serverpath}/mods/deathmatch/resources/${info.resource_path}`);
 
-		if (!this._pollPausedTimer)
-			this._pollPausedTimer = setInterval(() => { this.checkForPausedTick(); }, 1000);
+			// Start timer that polls for the execution being paused
+			if (!this._pollPausedTimer)
+				this._pollPausedTimer = setInterval(() => { this.checkForPausedTick(); }, 1000);
+
+			// We just start to run until we hit a breakpoint or an exception
+			this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: MTASADebugSession.THREAD_ID });
+		});
 	}
 
 	/**
@@ -166,23 +173,18 @@ class MTASADebugSession extends DebugSession {
 	 * Returns a fake 'stacktrace' where every 'stackframe' is a word from the current line.
 	 */
 	protected stackTraceRequest(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): void {
-		const words = this._sourceLines[this._currentLine].trim().split(/\s+/);
-
-		const startFrame = typeof args.startFrame === 'number' ? args.startFrame : 0;
-		const maxLevels = typeof args.levels === 'number' ? args.levels : words.length-startFrame;
-		const endFrame = Math.min(startFrame + maxLevels, words.length);
-
 		const frames = new Array<StackFrame>();
-		// every word of the current line becomes a stack frame.
-		for (let i= startFrame; i < endFrame; i++) {
-			const name = words[i];	// use a word of the line as the stackframe name
-			frames.push(new StackFrame(i, `${name}(${i})`, new Source(basename(this._sourceFile),
-				this.convertDebuggerPathToClient(this._sourceFile)),
+		
+		// Only the current stack frame is supported for now
+		const currentFilePath = this.getAbsoluteResourcePath(this._currentFile);
+		frames.push(new StackFrame(0, 'Frame 0', new Source(basename(currentFilePath),
+				this.convertDebuggerPathToClient(currentFilePath)),
 				this.convertDebuggerLineToClient(this._currentLine), 0));
-		}
+		
+		// Craft response
 		response.body = {
 			stackFrames: frames,
-			totalFrames: words.length
+			totalFrames: 1
 		};
 		this.sendResponse(response);
 	}
@@ -259,11 +261,6 @@ class MTASADebugSession extends DebugSession {
 	 * Called when a step to the next line is requested
 	 */
 	protected nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): void {
-		/*for (let ln = this._currentLine+1; ln < this._sourceLines.length; ln++) {
-			if (this.fireStepEvent(response, ln)) {
-				return;
-			}
-		}*/
 		this.sendResponse(response);
 		// no more lines: run to end
 		//this.sendEvent(new TerminatedEvent());
@@ -290,6 +287,8 @@ class MTASADebugSession extends DebugSession {
 
 				// Check if paused
 				if (obj.resume_mode == 1) {
+					// Store the breakpoint's file and line
+					this._currentFile = obj.current_file;
 					this._currentLine = obj.current_line;
 
 					this._isRunning = false;
@@ -306,9 +305,19 @@ class MTASADebugSession extends DebugSession {
 	 * @return The relative path
 	 */
 	private getRelativeResourcePath(absolutePath: string) {
-		const relativePath = absolutePath.toLowerCase().replace(this._resourcePath.toLowerCase(), '');
+		const relativePath = normalize(absolutePath).toLowerCase().replace(this._resourcePath.toLowerCase(), '');
 		
-		return relativePath.replace('\\', '/');
+		// Drop the resource name to prevent it from being in the string twice
+		return relativePath.replace('\\', '/').replace(/(.*?)\/(.*)/, '$2');
+	}
+
+	/**
+	 * Returns the absolute path from a relative path
+	 * @param relativePath The relative path (e.g. "<resourcenName>/server.lua")
+	 * @return The absolute path
+	 */
+	private getAbsoluteResourcePath(relativePath: string) {
+		return this._resourcePath + relativePath;
 	}
 
 	private log(msg: string, line: number) {

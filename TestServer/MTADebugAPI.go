@@ -18,6 +18,10 @@ type MTADebugAPI struct {
 	Breakpoints       []debugBreakpoint
 	ResumeMode        int
 	CurrentBreakpoint debugBreakpoint
+
+	Info struct {
+		ResourcePath string `json:"resource_path"`
+	}
 }
 
 type debugBreakpoint struct {
@@ -36,6 +40,8 @@ func NewMTADebugAPI(router *mux.Router) *MTADebugAPI {
 	api.ResumeMode = RESUME_MODE_RESUME
 
 	// Register routes
+	router.HandleFunc("/get_info", api.handlerGetInfo)
+	router.HandleFunc("/set_info", api.handlerSetInfo)
 	router.HandleFunc("/get_breakpoints", api.handlerGetBreakpoints)
 	router.HandleFunc("/set_breakpoint", api.handlerSetBreakpoint)
 	router.HandleFunc("/remove_breakpoint", api.handlerRemoveBreakpoint)
@@ -105,7 +111,23 @@ func (api *MTADebugAPI) handlerSetResumeMode(res http.ResponseWriter, req *http.
 		api.ResumeMode = jsonReq.ResumeMode // TODO: Check range
 		api.CurrentBreakpoint.File = jsonReq.CurrentFile
 		api.CurrentBreakpoint.Line = jsonReq.CurrentLine
-	}
 
-	json.NewEncoder(res).Encode(&jsonReq)
+		json.NewEncoder(res).Encode(&jsonReq)
+	}
+}
+
+func (api *MTADebugAPI) handlerGetInfo(res http.ResponseWriter, req *http.Request) {
+	err := json.NewEncoder(res).Encode(&api.Info)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (api *MTADebugAPI) handlerSetInfo(res http.ResponseWriter, req *http.Request) {
+	err := json.NewDecoder(req.Body).Decode(&api.Info)
+	if err != nil {
+		panic(err)
+	} else {
+		json.NewEncoder(res).Encode(&api.Info)
+	}
 }

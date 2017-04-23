@@ -27,6 +27,11 @@ function MTATD.MTADebug:constructor(backend)
     -- Enable development mode
     --setDevelopmentMode(true, true) -- TODO
 
+    -- Send info about us to backend
+    self._backend:request("MTADebug/set_info", {
+        resource_path = self:_getResourceBasePath()
+    })
+
     -- Initially fetch the breakpoints from the backend
     -- and wait till they're received
     self:_fetchBreakpoints(true)

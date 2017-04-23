@@ -11,6 +11,7 @@ import {
 import {DebugProtocol} from 'vscode-debugprotocol';
 import {readFileSync} from 'fs';
 import {basename} from 'path';
+import * as request from 'request';
 
 
 /**
@@ -53,7 +54,15 @@ class MTASADebugSession extends LoggingDebugSession {
 	// maps from sourceFile to array of Breakpoints
 	private _breakPoints = new Map<string, DebugProtocol.Breakpoint[]>();
 
+	private _pollPausedTimer: NodeJS.Timer = null;
+
 	private _variableHandles = new Handles<string>();
+
+	private _backendUrl: string = 'http://localhost:8080';
+
+	private _resourcePath: string = 'D:\\Dev\\MTA\\mtasa-blue\\Bin\\server\\mods\\deathmatch\\resources\\debug\\';
+
+	private _isRunning: boolean = false;
 
 	/**
 	 * Creates a new debug adapter that is used for one debug session.
@@ -61,6 +70,8 @@ class MTASADebugSession extends LoggingDebugSession {
 	 */
 	public constructor() {
 		super("mock-debug.txt");
+
+		this.setDebuggerLinesStartAt1(true);
 	}
 
 	/**
@@ -75,10 +86,10 @@ class MTASADebugSession extends LoggingDebugSession {
 		this.sendEvent(new InitializedEvent());
 
 		// This debug adapter implements the configurationDoneRequest.
-		response.body.supportsConfigurationDoneRequest = true;
+		//response.body.supportsConfigurationDoneRequest = true;
 
 		// make VS Code to use 'evaluate' when hovering over source
-		response.body.supportsEvaluateForHovers = true;
+		//response.body.supportsEvaluateForHovers = true;
 
 		this.sendResponse(response);
 	}
@@ -89,35 +100,30 @@ class MTASADebugSession extends LoggingDebugSession {
 			Logger.setup(Logger.LogLevel.Verbose, /*logToFile=*/false);
 		}
 
-		this._sourceFile = args.program;
+		this._sourceFile = 'D:\\Dev\\MTA\\mtasa-blue\\Bin\\server\\mods\\deathmatch\\resources\\debug\\server.lua'; //args.program;
 		this._sourceLines = readFileSync(this._sourceFile).toString().split('\n');
 
-		if (args.stopOnEntry) {
-			this._currentLine = 0;
-			this.sendResponse(response);
+		// we just start to run until we hit a breakpoint or an exception
+		this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: MTASADebugSession.THREAD_ID });
 
-			// we stop on the first line
-			this.sendEvent(new StoppedEvent("entry", MTASADebugSession.THREAD_ID));
-		} else {
-			// we just start to run until we hit a breakpoint or an exception
-			this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: MTASADebugSession.THREAD_ID });
-		}
+		if (!this._pollPausedTimer)
+			this._pollPausedTimer = setInterval(() => { this.checkForPausedTick(); }, 1000);
 	}
 
 	protected setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments): void {
 
-		var path = args.source.path;
-		var clientLines = args.lines;
+		const path = args.source.path;
+		const clientLines = args.lines;
 
 		// read file contents into array for direct access
-		var lines = readFileSync(path).toString().split('\n');
+		//var lines = readFileSync(path).toString().split('\n');
 
-		var breakpoints = new Array<Breakpoint>();
+		const breakpoints = new Array<Breakpoint>();
 
 		// verify breakpoint locations
 		for (var i = 0; i < clientLines.length; i++) {
-			var l = this.convertClientLineToDebugger(clientLines[i]);
-			var verified = false;
+			const l = this.convertClientLineToDebugger(clientLines[i]);
+			/*var verified = false;
 			if (l < lines.length) {
 				const line = lines[l].trim();
 				// if a line is empty or starts with '+' we don't allow to set a breakpoint but move the breakpoint down
@@ -131,10 +137,19 @@ class MTASADebugSession extends LoggingDebugSession {
 				if (line.indexOf("lazy") < 0) {
 					verified = true;    // this breakpoint has been validated
 				}
-			}
+			}*/
+			const verified = true;
 			const bp = <DebugProtocol.Breakpoint> new Breakpoint(verified, this.convertDebuggerLineToClient(l));
 			bp.id = this._breakpointId++;
 			breakpoints.push(bp);
+
+			// Send breakpoint request to backend
+			request(this._backendUrl + "/MTADebug/set_breakpoint", {
+				json: {
+					file: this.getRelativeResourcePath(args.source.path),
+					line: l
+				}
+			});
 		}
 		this._breakPoints.set(path, breakpoints);
 
@@ -234,53 +249,26 @@ class MTASADebugSession extends LoggingDebugSession {
 	}
 
 	protected continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): void {
-
-		for (var ln = this._currentLine+1; ln < this._sourceLines.length; ln++) {
-			if (this.fireEventsForLine(response, ln)) {
-				return;
-			}
-		}
-		this.sendResponse(response);
-		// no more lines: run to end
-		this.sendEvent(new TerminatedEvent());
+		
+		// Send continue request to backend
+		request(this._backendUrl + '/MTADebug/set_resume_mode', {
+			json: { resume_mode: 0 }
+		}, () => {
+			this._isRunning = true;
+			this.sendResponse(response);
+		});
 	}
-
-	protected reverseContinueRequest(response: DebugProtocol.ReverseContinueResponse, args: DebugProtocol.ReverseContinueArguments) : void {
-
-		for (var ln = this._currentLine-1; ln >= 0; ln--) {
-			if (this.fireEventsForLine(response, ln)) {
-				return;
-			}
-		}
-		this.sendResponse(response);
-		// no more lines: stop at first line
-		this._currentLine = 0;
-		this.sendEvent(new StoppedEvent("entry", MTASADebugSession.THREAD_ID));
- 	}
 
 	protected nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): void {
 
-		for (let ln = this._currentLine+1; ln < this._sourceLines.length; ln++) {
+		/*for (let ln = this._currentLine+1; ln < this._sourceLines.length; ln++) {
 			if (this.fireStepEvent(response, ln)) {
 				return;
 			}
-		}
+		}*/
 		this.sendResponse(response);
 		// no more lines: run to end
-		this.sendEvent(new TerminatedEvent());
-	}
-
-	protected stepBackRequest(response: DebugProtocol.StepBackResponse, args: DebugProtocol.StepBackArguments): void {
-
-		for (let ln = this._currentLine-1; ln >= 0; ln--) {
-			if (this.fireStepEvent(response, ln)) {
-				return;
-			}
-		}
-		this.sendResponse(response);
-		// no more lines: stop at first line
-		this._currentLine = 0;
-		this.sendEvent(new StoppedEvent("entry", MTASADebugSession.THREAD_ID));
+		//this.sendEvent(new TerminatedEvent());
 	}
 
 	protected evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): void {
@@ -292,60 +280,35 @@ class MTASADebugSession extends LoggingDebugSession {
 		this.sendResponse(response);
 	}
 
-	//---- some helpers
+	protected checkForPausedTick() {
+		if (!this._isRunning)
+			return;
 
-	/**
-	 * Fire StoppedEvent if line is not empty.
-	 */
-	private fireStepEvent(response: DebugProtocol.Response, ln: number): boolean {
+		request(this._backendUrl + '/MTADebug/get_resume_mode', (err, response, body) => {
+			if (!err && response.statusCode === 200) {
+				const obj = JSON.parse(body);
 
-		if (this._sourceLines[ln].trim().length > 0) {	// non-empty line
-			this._currentLine = ln;
-			this.sendResponse(response);
-			this.sendEvent(new StoppedEvent("step", MTASADebugSession.THREAD_ID));
-			return true;
-		}
-		return false;
+				// Check if paused
+				if (obj.resume_mode == 1) {
+					this._currentLine = obj.current_line;
+
+					this._isRunning = false;
+					this.sendEvent(new StoppedEvent('breakpoint', MTASADebugSession.THREAD_ID));
+				}
+			}
+		});
 	}
 
+
 	/**
-	 * Fire StoppedEvent if line has a breakpoint or the word 'exception' is found.
+	 * Returns the relative resource path from an absolute path
+	 * @param absolutePath The absolute path
+	 * @return The relative path
 	 */
-	private fireEventsForLine(response: DebugProtocol.Response, ln: number): boolean {
-
-		// find the breakpoints for the current source file
-		const breakpoints = this._breakPoints.get(this._sourceFile);
-		if (breakpoints) {
-			const bps = breakpoints.filter(bp => bp.line === this.convertDebuggerLineToClient(ln));
-			if (bps.length > 0) {
-				this._currentLine = ln;
-
-				// 'continue' request finished
-				this.sendResponse(response);
-
-				// send 'stopped' event
-				this.sendEvent(new StoppedEvent("breakpoint", MTASADebugSession.THREAD_ID));
-
-				// the following shows the use of 'breakpoint' events to update properties of a breakpoint in the UI
-				// if breakpoint is not yet verified, verify it now and send a 'breakpoint' update event
-				if (!bps[0].verified) {
-					bps[0].verified = true;
-					this.sendEvent(new BreakpointEvent("update", bps[0]));
-				}
-				return true;
-			}
-		}
-
-		// if word 'exception' found in source -> throw exception
-		if (this._sourceLines[ln].indexOf("exception") >= 0) {
-			this._currentLine = ln;
-			this.sendResponse(response);
-			this.sendEvent(new StoppedEvent("exception", MTASADebugSession.THREAD_ID));
-			this.log('exception in line', ln);
-			return true;
-		}
-
-		return false;
+	private getRelativeResourcePath(absolutePath: string) {
+		const relativePath = absolutePath.toLowerCase().replace(this._resourcePath.toLowerCase(), '');
+		
+		return relativePath.replace('\\', '/');
 	}
 
 	private log(msg: string, line: number) {

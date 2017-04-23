@@ -15,8 +15,9 @@ const (
 )
 
 type MTADebugAPI struct {
-	Breakpoints []debugBreakpoint
-	ResumeMode  int
+	Breakpoints       []debugBreakpoint
+	ResumeMode        int
+	CurrentBreakpoint debugBreakpoint
 }
 
 type debugBreakpoint struct {
@@ -82,22 +83,28 @@ func (api *MTADebugAPI) handlerRemoveBreakpoint(res http.ResponseWriter, req *ht
 
 func (api *MTADebugAPI) handlerGetResumeMode(res http.ResponseWriter, req *http.Request) {
 	var jsonRes = struct {
-		ResumeMode int `json:"resume_mode"`
-	}{api.ResumeMode}
+		ResumeMode  int    `json:"resume_mode"`
+		CurrentFile string `json:"current_file"`
+		CurrentLine int    `json:"current_line"`
+	}{api.ResumeMode, api.CurrentBreakpoint.File, api.CurrentBreakpoint.Line}
 
 	json.NewEncoder(res).Encode(&jsonRes)
 }
 
 func (api *MTADebugAPI) handlerSetResumeMode(res http.ResponseWriter, req *http.Request) {
 	var jsonReq = struct {
-		ResumeMode int `json:"resume_mode"`
-	}{api.ResumeMode}
+		ResumeMode  int    `json:"resume_mode"`
+		CurrentFile string `json:"current_file"`
+		CurrentLine int    `json:"current_line"`
+	}{}
 
 	err := json.NewDecoder(req.Body).Decode(&jsonReq)
 	if err != nil {
 		panic(err)
 	} else {
 		api.ResumeMode = jsonReq.ResumeMode // TODO: Check range
+		api.CurrentBreakpoint.File = jsonReq.CurrentFile
+		api.CurrentBreakpoint.Line = jsonReq.CurrentLine
 	}
 
 	json.NewEncoder(res).Encode(&jsonReq)

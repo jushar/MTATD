@@ -1,3 +1,5 @@
 {
-    "resume_mode": 0
+    "resume_mode": 0,
+    "current_line": 10,
+    "current_file": ""
 }

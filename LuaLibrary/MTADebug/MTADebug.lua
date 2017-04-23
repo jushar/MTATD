@@ -72,7 +72,11 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
     outputDebugString("Reached breakpoint")
 
     -- Tell backend that we reached a breakpoint
-    self._backend:request("MTADebug/set_resume_mode", { resume_mode = ResumeMode.Paused })
+    self._backend:request("MTADebug/set_resume_mode", {
+        resume_mode = ResumeMode.Paused,
+        current_file = debugInfo.short_src,
+        current_line = nextLineNumber
+    })
 
     -- Wait for resume request
     local continue = false

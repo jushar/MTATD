@@ -49,6 +49,11 @@
           }
         ]
       }
+    ],
+    "breakpoints": [
+      {
+        "language": "lua"
+      }
     ]
   },
   "scripts": {
@@ -63,9 +68,11 @@
     "mocha": "^2.3.3",
     "@types/node": "^6.0.40",
     "@types/mocha": "^2.2.32",
+    "@types/request": "^0.0.42",
     "vscode-debugadapter-testsupport": "^1.18.0"
   },
   "dependencies": {
+    "request": "^2.81.0",
     "vscode-debugadapter": "^1.18.0",
     "vscode-debugprotocol": "^1.18.0"
   }

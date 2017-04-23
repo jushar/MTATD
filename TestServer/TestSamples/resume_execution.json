@@ -1,5 +1,8 @@
 {
     "resume_mode": 0,
     "current_line": 10,
-    "current_file": ""
+    "current_file": "",
+    "local_variables": {
+        "hello": "world"
+    }
 }

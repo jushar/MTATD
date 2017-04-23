@@ -15,9 +15,10 @@ const (
 )
 
 type MTADebugAPI struct {
-	Breakpoints       []debugBreakpoint
-	ResumeMode        int
-	CurrentBreakpoint debugBreakpoint
+	Breakpoints           []debugBreakpoint
+	ResumeMode            int
+	CurrentBreakpoint     debugBreakpoint
+	CurrentLocalVariables map[string]string
 
 	Info struct {
 		ResourcePath string `json:"resource_path"`
@@ -88,20 +89,22 @@ func (api *MTADebugAPI) handlerRemoveBreakpoint(res http.ResponseWriter, req *ht
 }
 
 func (api *MTADebugAPI) handlerGetResumeMode(res http.ResponseWriter, req *http.Request) {
-	var jsonRes = struct {
-		ResumeMode  int    `json:"resume_mode"`
-		CurrentFile string `json:"current_file"`
-		CurrentLine int    `json:"current_line"`
-	}{api.ResumeMode, api.CurrentBreakpoint.File, api.CurrentBreakpoint.Line}
+	var jsonRes = struct { // TODO: Define proper type
+		ResumeMode     int               `json:"resume_mode"`
+		CurrentFile    string            `json:"current_file"`
+		CurrentLine    int               `json:"current_line"`
+		LocalVariables map[string]string `json:"local_variables"`
+	}{api.ResumeMode, api.CurrentBreakpoint.File, api.CurrentBreakpoint.Line, api.CurrentLocalVariables}
 
 	json.NewEncoder(res).Encode(&jsonRes)
 }
 
 func (api *MTADebugAPI) handlerSetResumeMode(res http.ResponseWriter, req *http.Request) {
 	var jsonReq = struct {
-		ResumeMode  int    `json:"resume_mode"`
-		CurrentFile string `json:"current_file"`
-		CurrentLine int    `json:"current_line"`
+		ResumeMode     int               `json:"resume_mode"`
+		CurrentFile    string            `json:"current_file"`
+		CurrentLine    int               `json:"current_line"`
+		LocalVariables map[string]string `json:"local_variables"`
 	}{}
 
 	err := json.NewDecoder(req.Body).Decode(&jsonReq)
@@ -111,6 +114,7 @@ func (api *MTADebugAPI) handlerSetResumeMode(res http.ResponseWriter, req *http.
 		api.ResumeMode = jsonReq.ResumeMode // TODO: Check range
 		api.CurrentBreakpoint.File = jsonReq.CurrentFile
 		api.CurrentBreakpoint.Line = jsonReq.CurrentLine
+		api.CurrentLocalVariables = jsonReq.LocalVariables
 
 		json.NewEncoder(res).Encode(&jsonReq)
 	}

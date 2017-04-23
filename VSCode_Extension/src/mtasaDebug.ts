@@ -41,6 +41,9 @@ class MTASADebugSession extends DebugSession {
 	// This is the next line that will be 'executed'
 	private _currentLine = 0;
 
+	// Current local variables
+	private _currentLocalVariables: Object;
+
 	// maps from sourceFile to array of Breakpoints
 	private _breakPoints = new Map<string, DebugProtocol.Breakpoint[]>();
 
@@ -211,31 +214,20 @@ class MTASADebugSession extends DebugSession {
 	protected variablesRequest(response: DebugProtocol.VariablesResponse, args: DebugProtocol.VariablesArguments): void {
 		const variables = [];
 		const id = this._variableHandles.get(args.variablesReference);
+		
 		if (id != null) {
-			variables.push({
-				name: id + "_i",
-				type: "integer",
-				value: "123",
-				variablesReference: 0
-			});
-			variables.push({
-				name: id + "_f",
-				type: "float",
-				value: "3.14",
-				variablesReference: 0
-			});
-			variables.push({
-				name: id + "_s",
-				type: "string",
-				value: "hello world",
-				variablesReference: 0
-			});
-			variables.push({
-				name: id + "_o",
-				type: "object",
-				value: "Object",
-				variablesReference: this._variableHandles.create("object_")
-			});
+			for (const name in this._currentLocalVariables) {
+				if (this._currentLocalVariables.hasOwnProperty(name)) {
+					variables.push({
+						name: name,
+						type: 'string', // TODO: Map type properly
+						value: this._currentLocalVariables[name],
+						variablesReference: 0
+					});
+				}
+			}
+
+			// TODO: Use variablesReference to show the entries in tables
 		}
 
 		response.body = {
@@ -290,6 +282,7 @@ class MTASADebugSession extends DebugSession {
 					// Store the breakpoint's file and line
 					this._currentFile = obj.current_file;
 					this._currentLine = obj.current_line;
+					this._currentLocalVariables = obj.local_variables;
 
 					this._isRunning = false;
 					this.sendEvent(new StoppedEvent('breakpoint', MTASADebugSession.THREAD_ID));

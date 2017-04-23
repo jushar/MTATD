@@ -80,7 +80,9 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
     self._backend:request("MTADebug/set_resume_mode", {
         resume_mode = ResumeMode.Paused,
         current_file = debugInfo.short_src,
-        current_line = nextLineNumber
+        current_line = nextLineNumber,
+
+        local_variables = self:_getLocalVariables()
     })
 
     -- Wait for resume request
@@ -175,4 +177,24 @@ function MTATD.MTADebug:_getResourceBasePath()
     else
         return getResourceName(thisResource).."/"
     end
+end
+
+-----------------------------------------------------------
+-- Returns the names and values of the local variables
+-- at the "current" stack frame
+--
+-- Returns a table indexed by the variable name
+-----------------------------------------------------------
+function MTATD.MTADebug:_getLocalVariables()
+    local variables = {}
+
+    -- Get the values of up to 50 local variables
+    for i = 1, 50 do
+        local name, value = debug.getlocal(4, i)
+        if name and value then
+            variables[name] = tostring(value)
+        end
+    end
+
+    return variables
 end

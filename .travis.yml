@@ -1,0 +1,17 @@
+language: go
+sudo: true
+
+go:
+  - 1.7
+
+before_install:
+  sudo apt-get install lua5.1
+  
+script:
+  # Lint Lua files (TODO: Write script to automatically go through all files)
+  - luac -p LuaLibrary/MTATD.lua LuaLibrary/Backend.lua LuaLibrary/MTADebug/MTADebug.lua
+  
+  # Build Go Testserver
+  - mkdir build
+  - cd build
+  - go build TestServer/main.go TestServer/MTADebugAPI.go TestServer/MTAServer.go TestServer/MTAUnitAPI.go 

@@ -64,6 +64,7 @@ class MTASADebugSession extends DebugSession {
 
 	private _backendUrl: string = 'http://localhost:8080';
 
+	private _resourceName: string;
 	private _resourcePath: string;
 
 	private _isRunning: boolean = false;
@@ -94,6 +95,9 @@ class MTASADebugSession extends DebugSession {
 		// make VS Code to use 'evaluate' when hovering over source
 		//response.body.supportsEvaluateForHovers = true;
 
+		// Enable the restart request
+		response.body.supportsRestartRequest = true;
+
 		this.sendResponse(response);
 	}
 
@@ -117,6 +121,7 @@ class MTASADebugSession extends DebugSession {
 
 			// Apply path from response
 			const info = JSON.parse(body);
+			this._resourceName = info.resource_name;
 			this._resourcePath = normalize(`${args.serverpath}/mods/deathmatch/resources/${info.resource_path}`);
 
 			// Start timer that polls for the execution being paused
@@ -125,6 +130,18 @@ class MTASADebugSession extends DebugSession {
 
 			// We just start to run until we hit a breakpoint or an exception
 			this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: MTASADebugSession.THREAD_ID });
+		});
+	}
+
+	/**
+	 * Called when the editor requests a restart
+	 */
+	protected restartRequest(response: DebugProtocol.RestartResponse, args: DebugProtocol.RestartArguments): void {
+		// Send restart command to server
+		request(this._backendUrl + '/MTAServer/command', {
+			json: { command: `restart ${this._resourceName}` }
+		}, () => {
+			this.sendResponse(response);
 		});
 	}
 

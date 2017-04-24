@@ -30,6 +30,7 @@ function MTATD.MTADebug:constructor(backend)
 
     -- Send info about us to backend
     self._backend:request("MTADebug/set_info", {
+        resource_name = getResourceName(getThisResource()),
         resource_path = self:_getResourceBasePath()
     })
 

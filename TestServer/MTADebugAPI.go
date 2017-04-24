@@ -25,6 +25,7 @@ type MTADebugAPI struct {
 	EvalResult              string
 
 	Info struct {
+		ResourceName string `json:"resource_name"`
 		ResourcePath string `json:"resource_path"`
 	}
 }

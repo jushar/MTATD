@@ -48,8 +48,11 @@ function MTATD.MTADebug:constructor(backend)
 
             -- Check for changing resume mode
             self:_checkForResumeModeChange()
+
+            -- Check for pending eval expression
+            self:_checkForPendingEval()
         end,
-        3 * 1000,
+        500,
         0
     )
 end
@@ -191,6 +194,26 @@ function MTATD.MTADebug:_checkForResumeModeChange()
 end
 
 -----------------------------------------------------------
+-- Checks for pending 'evaluate' commands
+-----------------------------------------------------------
+function MTATD.MTADebug:_checkForPendingEval()
+    self._backend:request("MTADebug/get_pending_eval", {},
+        function(info)
+            if info.pending_eval and info.pending_eval ~= "" then
+                -- Run the piece of code
+                outputDebugString("RUN STRING: "..info.pending_eval)
+                local returnString, errorString = self:_runString(info.pending_eval)
+
+                -- Send result back to backend
+                self._backend:request("MTADebug/set_eval_result", {
+                    eval_result = "Result: "..tostring(returnString or errorString)
+                }, function() end)
+            end
+        end
+    )
+end
+
+-----------------------------------------------------------
 -- Builds the base path for a resource (the path used
 -- in error messages)
 --
@@ -269,4 +292,55 @@ function MTATD.MTADebug:_getGlobalVariables()
     end
 
     return variables
+end
+
+-----------------------------------------------------------
+-- Loads and runs a given string
+--
+-- codeString (string): The string you want to run
+--
+-- Returns the result as the 1st parameter and maybe an
+-- error as the 2nd parameter
+-----------------------------------------------------------
+function MTATD.MTADebug:_runString(codeString)
+    -- Hacked in from 'runcode' resource
+	local notReturned
+
+	-- First we test with return
+	local commandFunction, errorMsg = loadstring("return "..codeString)
+	if errorMsg then
+		-- It failed.  Lets try without "return"
+		commandFunction, errorMsg = loadstring(codeString)
+	end
+	if errorMsg then
+		-- It still failed.  Print the error message and stop the function
+		return nil, errorMsg
+	end
+
+	-- Finally, lets execute our function
+	local results = { pcall(commandFunction) }
+	if not results[1] then
+		return nil, results[2]
+	end
+	
+	local resultsString = ""
+	local first = true
+	for i = 2, #results do
+		if first then
+			first = false
+		else
+			resultsString = resultsString..", "
+		end
+		local resultType = type(results[i])
+		if isElement(results[i]) then
+			resultType = "element:"..getElementType(results[i])
+		end
+		resultsString = resultsString..tostring(results[i]).." ["..resultType.."]"
+	end
+	
+	if #results > 1 then
+		return resultsString
+	end
+	
+	return true
 end

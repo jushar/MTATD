@@ -21,6 +21,8 @@ type MTADebugAPI struct {
 	CurrentLocalVariables   map[string]string
 	CurrentUpvalueVariables map[string]string
 	CurrentGlobalVariables  map[string]string
+	PendingEval             string
+	EvalResult              string
 
 	Info struct {
 		ResourcePath string `json:"resource_path"`
@@ -41,15 +43,24 @@ func NewMTADebugAPI(router *mux.Router) *MTADebugAPI {
 	api := new(MTADebugAPI)
 	api.Breakpoints = []debugBreakpoint{}
 	api.ResumeMode = RESUME_MODE_RESUME
+	api.PendingEval = ""
+	api.EvalResult = ""
 
 	// Register routes
 	router.HandleFunc("/get_info", api.handlerGetInfo)
 	router.HandleFunc("/set_info", api.handlerSetInfo)
+
 	router.HandleFunc("/get_breakpoints", api.handlerGetBreakpoints)
 	router.HandleFunc("/set_breakpoint", api.handlerSetBreakpoint)
 	router.HandleFunc("/remove_breakpoint", api.handlerRemoveBreakpoint)
+
 	router.HandleFunc("/get_resume_mode", api.handlerGetResumeMode)
 	router.HandleFunc("/set_resume_mode", api.handlerSetResumeMode)
+
+	router.HandleFunc("/get_pending_eval", api.handlerGetPendingEval)
+	router.HandleFunc("/set_pending_eval", api.handlerSetPendingEval)
+	router.HandleFunc("/get_eval_result", api.handlerGetEvalResult)
+	router.HandleFunc("/set_eval_result", api.handlerSetEvalResult)
 
 	return api
 }
@@ -143,5 +154,61 @@ func (api *MTADebugAPI) handlerSetInfo(res http.ResponseWriter, req *http.Reques
 		panic(err)
 	} else {
 		json.NewEncoder(res).Encode(&api.Info)
+	}
+}
+
+func (api *MTADebugAPI) handlerGetPendingEval(res http.ResponseWriter, req *http.Request) {
+	var jsonReq = struct {
+		PendingEval string `json:"pending_eval"`
+	}{api.PendingEval}
+
+	err := json.NewEncoder(res).Encode(&jsonReq)
+	if err != nil {
+		panic(err)
+	} else {
+		api.PendingEval = ""
+	}
+}
+
+func (api *MTADebugAPI) handlerSetPendingEval(res http.ResponseWriter, req *http.Request) {
+	var jsonReq = struct {
+		PendingEval string `json:"pending_eval"`
+	}{}
+
+	err := json.NewDecoder(req.Body).Decode(&jsonReq)
+	if err != nil {
+		panic(err)
+	} else {
+		api.PendingEval = jsonReq.PendingEval
+
+		json.NewEncoder(res).Encode(&jsonReq)
+	}
+}
+
+func (api *MTADebugAPI) handlerGetEvalResult(res http.ResponseWriter, req *http.Request) {
+	var jsonReq = struct {
+		EvalResult string `json:"eval_result"`
+	}{api.EvalResult}
+
+	err := json.NewEncoder(res).Encode(&jsonReq)
+	if err != nil {
+		panic(err)
+	} else {
+		api.EvalResult = ""
+	}
+}
+
+func (api *MTADebugAPI) handlerSetEvalResult(res http.ResponseWriter, req *http.Request) {
+	var jsonReq = struct {
+		EvalResult string `json:"eval_result"`
+	}{}
+
+	err := json.NewDecoder(req.Body).Decode(&jsonReq)
+	if err != nil {
+		panic(err)
+	} else {
+		api.EvalResult = jsonReq.EvalResult
+
+		json.NewEncoder(res).Encode(&jsonReq)
 	}
 }

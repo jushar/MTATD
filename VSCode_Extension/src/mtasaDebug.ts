@@ -294,12 +294,28 @@ class MTASADebugSession extends DebugSession {
 		});
 	}
 
+	/**
+	 * Called when the editor requests an eval call
+	 */
 	protected evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): void {
-		response.body = {
-			result: `evaluate(context: '${args.context}', '${args.expression}')`,
-			variablesReference: 0
-		};
-		this.sendResponse(response);
+		request(this._backendUrl + '/MTADebug/set_pending_eval', {
+			json: { pending_eval: args.expression }
+		}, () => {
+
+			// Dirty hack: Wait a moment (TODO)
+			setTimeout(() => {
+				request(this._backendUrl + '/MTADebug/get_eval_result', (err, res, body) => {
+					if (!err && res.statusCode === 200) {
+						// Output result to backend
+						response.body = {
+							result: JSON.parse(body).eval_result,
+							variablesReference: 0
+						};
+						this.sendResponse(response);
+					}
+				});
+			}, 1000);
+		});
 	}
 
 	/**

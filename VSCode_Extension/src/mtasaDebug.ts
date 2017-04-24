@@ -26,6 +26,15 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 	trace?: boolean;
 }
 
+/**
+ * The debugger resume state
+ */
+enum ResumeMode {
+	Resume = 0,
+	Paused,
+	LineStep
+}
+
 class MTASADebugSession extends DebugSession {
 
 	// we don't support multiple threads, so we can use a hardcoded ID for the default thread
@@ -265,7 +274,7 @@ class MTASADebugSession extends DebugSession {
 	protected continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): void {
 		// Send continue request to backend
 		request(this._backendUrl + '/MTADebug/set_resume_mode', {
-			json: { resume_mode: 0 }
+			json: { resume_mode: ResumeMode.Resume }
 		}, () => {
 			this._isRunning = true;
 			this.sendResponse(response);
@@ -276,9 +285,13 @@ class MTASADebugSession extends DebugSession {
 	 * Called when a step to the next line is requested
 	 */
 	protected nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): void {
-		this.sendResponse(response);
-		// no more lines: run to end
-		//this.sendEvent(new TerminatedEvent());
+		// Send line step request to backend
+		request(this._backendUrl + '/MTADebug/set_resume_mode', {
+			json: { resume_mode: ResumeMode.LineStep }
+		}, () => {
+			this._isRunning = false;
+			this.sendResponse(response);
+		});
 	}
 
 	protected evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): void {
@@ -293,15 +306,12 @@ class MTASADebugSession extends DebugSession {
 	 * Polls the backend for the current execution state
 	 */
 	protected checkForPausedTick() {
-		if (!this._isRunning)
-			return;
-
 		request(this._backendUrl + '/MTADebug/get_resume_mode', (err, response, body) => {
 			if (!err && response.statusCode === 200) {
 				const obj = JSON.parse(body);
 
 				// Check if paused
-				if (obj.resume_mode == 1) {
+				if (obj.resume_mode == ResumeMode.Paused) {
 					// Store the breakpoint's file and line
 					this._currentFile = obj.current_file;
 					this._currentLine = obj.current_line;

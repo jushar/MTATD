@@ -23,6 +23,7 @@ local ResumeMode = {
 function MTATD.MTADebug:constructor(backend)
     self._backend = backend
     self._breakpoints = {}
+    self._resumeMode = ResumeMode.Resume
 
     -- Enable development mode
     --setDevelopmentMode(true, true) -- TODO
@@ -39,16 +40,26 @@ function MTATD.MTADebug:constructor(backend)
     -- Install debug hook
     debug.sethook(function(...) self:_hookFunction(...) end, "l")
 
-    -- Update breakpoint list once per 3 seconds asynchronously
-    self._breakpointUpdateTimer = setTimer(function() self:_fetchBreakpoints() end, 3 * 1000, 0)
+    -- Update things once per 3 seconds asynchronously
+    self._updateTimer = setTimer(
+        function()
+            -- Update breakpoint list
+            self:_fetchBreakpoints()
+
+            -- Check for changing resume mode
+            self:_checkForResumeModeChange()
+        end,
+        3 * 1000,
+        0
+    )
 end
 
 -----------------------------------------------------------
 -- Disposes the MTADebug instance (e.g. stops polling)
 -----------------------------------------------------------
 function MTATD.MTADebug:destructor()
-    if self._breakpointUpdateTimer and isTimer(self._breakpointUpdateTimer) then
-        killTimer(self._breakpointUpdateTimer)
+    if self._updateTimer and isTimer(self._updateTimer) then
+        killTimer(self._updateTimer)
     end
 end
 
@@ -70,10 +81,11 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
     local debugInfo = debug.getinfo(3, "S")
     debugInfo.short_src = debugInfo.short_src:gsub("\\", "/")
 
-    -- Is there a breakpoint?
-    if not self:hasBreakpoint(debugInfo.short_src, nextLineNumber) then
+    -- Is there a breakpoint and pending line step?
+    if not self:hasBreakpoint(debugInfo.short_src, nextLineNumber) and self._resumeMode ~= ResumeMode.LineStep then
         return
     end
+
     outputDebugString("Reached breakpoint")
 
     -- Tell backend that we reached a breakpoint
@@ -93,7 +105,9 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
         -- Ask backend
         self._backend:request("MTADebug/get_resume_mode", {},
             function(info)
-                if info.resume_mode == ResumeMode.Resume then
+                self._resumeMode = info.resume_mode
+
+                if info.resume_mode ~= ResumeMode.Paused then
                     continue = true
 
                     -- Update breakpoints
@@ -165,6 +179,18 @@ function MTATD.MTADebug:_fetchBreakpoints(wait)
 end
 
 -----------------------------------------------------------
+-- Checks for resume mode changes and stores the
+-- maybe new resume mode
+-----------------------------------------------------------
+function MTATD.MTADebug:_checkForResumeModeChange()
+    self._backend:request("MTADebug/get_resume_mode", {},
+        function(info)
+            self._resumeMode = info.resume_mode
+        end
+    )
+end
+
+-----------------------------------------------------------
 -- Builds the base path for a resource (the path used
 -- in error messages)
 --
@@ -188,7 +214,7 @@ end
 -- Returns a table indexed by the variable name
 -----------------------------------------------------------
 function MTATD.MTADebug:_getLocalVariables()
-    local variables = { __isObject = "" }
+    local variables = { __isObject = "" } -- __isObject ensures that toJSON creates a JSON object rather than an array
 
     -- Get the values of up to 50 local variables
     for i = 1, 50 do

@@ -14,4 +14,4 @@ script:
   # Build Go Testserver
   - mkdir build
   - cd build
-  - go build ../TestServer/main.go ../TestServer/MTADebugAPI.go ../TestServer/MTAServer.go ../TestServer/MTAUnitAPI.go 
+  - go build ../TestServer/main.go ../TestServer/MTADebugAPI.go ../TestServer/MTAServer.go ../TestServer/MTAServerAPI.go ../TestServer/MTAUnitAPI.go 

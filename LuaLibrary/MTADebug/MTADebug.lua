@@ -82,7 +82,9 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
         current_file = debugInfo.short_src,
         current_line = nextLineNumber,
 
-        local_variables = self:_getLocalVariables()
+        local_variables = self:_getLocalVariables(),
+        upvalue_variables = self:_getUpvalueVariables(),
+        global_variables = self:_getGlobalVariables()
     })
 
     -- Wait for resume request
@@ -186,13 +188,57 @@ end
 -- Returns a table indexed by the variable name
 -----------------------------------------------------------
 function MTATD.MTADebug:_getLocalVariables()
-    local variables = {}
+    local variables = { __isObject = "" }
 
     -- Get the values of up to 50 local variables
     for i = 1, 50 do
         local name, value = debug.getlocal(4, i)
         if name and value then
             variables[name] = tostring(value)
+        end
+    end
+
+    return variables
+end
+
+-----------------------------------------------------------
+-- Returns the names and values of the upvalue variables
+-- at the "current" stack frame
+--
+-- Returns a table indexed by the variable name
+-----------------------------------------------------------
+function MTATD.MTADebug:_getUpvalueVariables()
+    local variables = { __isObject = "" }
+    local func = debug.getinfo(4, "f").func
+    
+    if func then
+        for i = 1, 50 do
+            local name, value = debug.getupvalue(func, i)
+            if name and value then
+                variables[tostring(name)] = tostring(value)
+            end
+        end
+    end
+
+    return variables
+end
+
+-----------------------------------------------------------
+-- Returns the names and values of the global variables
+--
+-- Returns a table indexed by the variable name
+-----------------------------------------------------------
+function MTATD.MTADebug:_getGlobalVariables()
+    local counter = 0
+    local variables = { __isObject = "" }
+
+    for k, v in pairs(_G) do
+        if type(v) ~= "function" and type(k) == "string" then
+            counter = counter + 1
+            
+            if counter <= 50 then
+                variables[k] = tostring(v)
+            end
         end
     end
 

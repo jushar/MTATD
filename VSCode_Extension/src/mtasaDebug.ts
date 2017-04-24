@@ -41,8 +41,10 @@ class MTASADebugSession extends DebugSession {
 	// This is the next line that will be 'executed'
 	private _currentLine = 0;
 
-	// Current local variables
+	// Current local, upvalue and global variables
 	private _currentLocalVariables: Object;
+	private _currentUpvalueVariables: Object;
+	private _currentGlobalVariables: Object;
 
 	// maps from sourceFile to array of Breakpoints
 	private _breakPoints = new Map<string, DebugProtocol.Breakpoint[]>();
@@ -200,7 +202,7 @@ class MTASADebugSession extends DebugSession {
 		const scopes = new Array<Scope>();
 		scopes.push(new Scope("Local", this._variableHandles.create("local_" + frameReference), false));
 		scopes.push(new Scope("Closure", this._variableHandles.create("closure_" + frameReference), false));
-		scopes.push(new Scope("Global", this._variableHandles.create("global_" + frameReference), true));
+		scopes.push(new Scope("Global", this._variableHandles.create("global_" + frameReference), false));
 
 		response.body = {
 			scopes: scopes
@@ -215,9 +217,10 @@ class MTASADebugSession extends DebugSession {
 		const variables = [];
 		const id = this._variableHandles.get(args.variablesReference);
 		
-		if (id != null) {
+		// TODO: Use variablesReference to show the entries in tables
+		if (id.startsWith('local')) {
 			for (const name in this._currentLocalVariables) {
-				if (this._currentLocalVariables.hasOwnProperty(name)) {
+				if (this._currentLocalVariables.hasOwnProperty(name) && name != '__isObject') {
 					variables.push({
 						name: name,
 						type: 'string', // TODO: Map type properly
@@ -226,8 +229,28 @@ class MTASADebugSession extends DebugSession {
 					});
 				}
 			}
-
-			// TODO: Use variablesReference to show the entries in tables
+		} else if (id.startsWith('closure')) {
+			for (const name in this._currentUpvalueVariables) {
+				if (this._currentUpvalueVariables.hasOwnProperty(name) && name != '__isObject') {
+					variables.push({
+						name: name,
+						type: 'string', // TODO: Map type properly
+						value: this._currentUpvalueVariables[name],
+						variablesReference: 0
+					});
+				}
+			}
+		} else if (id.startsWith('global')) {
+			for (const name in this._currentGlobalVariables) {
+				if (this._currentGlobalVariables.hasOwnProperty(name) && name != '__isObject') {
+					variables.push({
+						name: name,
+						type: 'string', // TODO: Map type properly
+						value: this._currentGlobalVariables[name],
+						variablesReference: 0
+					});
+				}
+			}
 		}
 
 		response.body = {
@@ -282,7 +305,10 @@ class MTASADebugSession extends DebugSession {
 					// Store the breakpoint's file and line
 					this._currentFile = obj.current_file;
 					this._currentLine = obj.current_line;
+
 					this._currentLocalVariables = obj.local_variables;
+					this._currentUpvalueVariables = obj.upvalue_variables;
+					this._currentGlobalVariables = obj.global_variables;
 
 					this._isRunning = false;
 					this.sendEvent(new StoppedEvent('breakpoint', MTASADebugSession.THREAD_ID));

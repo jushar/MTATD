@@ -15,10 +15,12 @@ const (
 )
 
 type MTADebugAPI struct {
-	Breakpoints           []debugBreakpoint
-	ResumeMode            int
-	CurrentBreakpoint     debugBreakpoint
-	CurrentLocalVariables map[string]string
+	Breakpoints             []debugBreakpoint
+	ResumeMode              int
+	CurrentBreakpoint       debugBreakpoint
+	CurrentLocalVariables   map[string]string
+	CurrentUpvalueVariables map[string]string
+	CurrentGlobalVariables  map[string]string
 
 	Info struct {
 		ResourcePath string `json:"resource_path"`
@@ -90,21 +92,25 @@ func (api *MTADebugAPI) handlerRemoveBreakpoint(res http.ResponseWriter, req *ht
 
 func (api *MTADebugAPI) handlerGetResumeMode(res http.ResponseWriter, req *http.Request) {
 	var jsonRes = struct { // TODO: Define proper type
-		ResumeMode     int               `json:"resume_mode"`
-		CurrentFile    string            `json:"current_file"`
-		CurrentLine    int               `json:"current_line"`
-		LocalVariables map[string]string `json:"local_variables"`
-	}{api.ResumeMode, api.CurrentBreakpoint.File, api.CurrentBreakpoint.Line, api.CurrentLocalVariables}
+		ResumeMode       int               `json:"resume_mode"`
+		CurrentFile      string            `json:"current_file"`
+		CurrentLine      int               `json:"current_line"`
+		LocalVariables   map[string]string `json:"local_variables"`
+		UpvalueVariables map[string]string `json:"upvalue_variables"`
+		GlobalVariables  map[string]string `json:"global_variables"`
+	}{api.ResumeMode, api.CurrentBreakpoint.File, api.CurrentBreakpoint.Line, api.CurrentLocalVariables, api.CurrentUpvalueVariables, api.CurrentGlobalVariables}
 
 	json.NewEncoder(res).Encode(&jsonRes)
 }
 
 func (api *MTADebugAPI) handlerSetResumeMode(res http.ResponseWriter, req *http.Request) {
 	var jsonReq = struct {
-		ResumeMode     int               `json:"resume_mode"`
-		CurrentFile    string            `json:"current_file"`
-		CurrentLine    int               `json:"current_line"`
-		LocalVariables map[string]string `json:"local_variables"`
+		ResumeMode       int               `json:"resume_mode"`
+		CurrentFile      string            `json:"current_file"`
+		CurrentLine      int               `json:"current_line"`
+		LocalVariables   map[string]string `json:"local_variables"`
+		UpvalueVariables map[string]string `json:"upvalue_variables"`
+		GlobalVariables  map[string]string `json:"global_variables"`
 	}{}
 
 	err := json.NewDecoder(req.Body).Decode(&jsonReq)
@@ -112,9 +118,13 @@ func (api *MTADebugAPI) handlerSetResumeMode(res http.ResponseWriter, req *http.
 		panic(err)
 	} else {
 		api.ResumeMode = jsonReq.ResumeMode // TODO: Check range
+
 		api.CurrentBreakpoint.File = jsonReq.CurrentFile
 		api.CurrentBreakpoint.Line = jsonReq.CurrentLine
+
 		api.CurrentLocalVariables = jsonReq.LocalVariables
+		api.CurrentUpvalueVariables = jsonReq.UpvalueVariables
+		api.CurrentGlobalVariables = jsonReq.GlobalVariables
 
 		json.NewEncoder(res).Encode(&jsonReq)
 	}

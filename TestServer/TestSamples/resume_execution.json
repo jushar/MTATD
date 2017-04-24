@@ -4,5 +4,11 @@
     "current_file": "",
     "local_variables": {
         "hello": "world"
+    },
+    "upvalue_variables": {
+        "foo": "bar"
+    },
+    "global_variables": {
+        "bar": "foo"
     }
 }

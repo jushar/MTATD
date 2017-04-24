@@ -105,6 +105,9 @@ class MTASADebugSession extends DebugSession {
 			Logger.setup(Logger.LogLevel.Verbose, /*logToFile=*/false);
 		}
 
+		// Delay request shortly if the MTA Server is not running yet
+		// TODO
+		
 		// Get info about debuggee
 		request(this._backendUrl + '/MTADebug/get_info', (err, res, body) => {
 			if (err || res.statusCode != 200) {
@@ -352,8 +355,7 @@ class MTASADebugSession extends DebugSession {
 	private getRelativeResourcePath(absolutePath: string) {
 		const relativePath = normalize(absolutePath).toLowerCase().replace(this._resourcePath.toLowerCase(), '');
 		
-		// Drop the resource name to prevent it from being in the string twice
-		return relativePath.replace('\\', '/').replace(/(.*?)\/(.*)/, '$2');
+		return relativePath.replace('\\', '/');
 	}
 
 	/**
@@ -362,6 +364,9 @@ class MTASADebugSession extends DebugSession {
 	 * @return The absolute path
 	 */
 	private getAbsoluteResourcePath(relativePath: string) {
+		// Drop the resource name to prevent it from being in the string twice
+		relativePath = relativePath.replace(/(.*?)\/(.*)/, '$2');
+
 		return this._resourcePath + relativePath;
 	}
 

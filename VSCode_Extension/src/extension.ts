@@ -25,9 +25,12 @@ export function activate(context: vscode.ExtensionContext) {
                 // Display a message box to the user
                 vscode.window.showInformationMessage('Starting MTA:SA server right now');
 
+                // Get extension path (the DebugServer lays there)
+                const extensionPath = normalize(vscode.extensions.getExtension('jusonex.mtatd').extensionPath);
+
                 // Start server
-                const path = normalize(info[0].serverpath + '/MTA Server_d.exe');
-                exec(`start cmd.exe /K "${path}"`); // TODO: Insert packaged path here
+                const path = normalize(info[0].serverpath + '/MTA Server.exe');
+                exec(`start "" "${extensionPath}\\DebugServer.exe" "${path}"`); // TODO: Insert packaged path here
             }
         }
     });

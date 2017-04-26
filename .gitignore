@@ -2,3 +2,5 @@
 \.vscode/
 
 LuaLibrary/MTATD\.bundle\.lua
+/VSCode_Extension/DebugServer.exe
+/VSCode_Extension/*.vsix

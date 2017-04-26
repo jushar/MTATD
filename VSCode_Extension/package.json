@@ -1,6 +1,6 @@
 {
   "name": "mtatd",
-  "displayName": "Extension",
+  "displayName": "MTA:SA Lua Debugger",
   "description": "MTA:SA Test and Debug Framework",
   "version": "0.0.1",
   "publisher": "jusonex",

@@ -154,7 +154,7 @@ class MTASADebugSession extends DebugSession {
 		request(this._backendUrl + "/MTADebug/clear_breakpoints")
 
 		// Read file contents into array for direct access
-		const lines = readFileSync(path).toString().split('\n');
+		//const lines = readFileSync(path).toString().split('\n');
 
 		const breakpoints = new Array<Breakpoint>();
 
@@ -162,12 +162,12 @@ class MTASADebugSession extends DebugSession {
 		for (let i = 0; i < clientLines.length; i++) {
 			let l = this.convertClientLineToDebugger(clientLines[i]);
 
-			if (l < lines.length) {
+			/*if (l < lines.length) {
 				// If a line is empty or starts with '+' we don't allow to set a breakpoint but move the breakpoint down
 				const line = lines[l].trim();
 				if (line.length == 0 || line.indexOf("--") == 0)
 					l++;
-			}
+			}*/
 
 			// Create breakpoint
 			const bp = <DebugProtocol.Breakpoint> new Breakpoint(true, this.convertDebuggerLineToClient(l));

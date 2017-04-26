@@ -9,9 +9,13 @@ FILES = [
     'MTATD.lua',
     'Backend.lua',
 
-    'MTAUnit/MTAUnit.lua',
-    'MTAUnit/UnitTest.lua',
-    'MTAUnit/TestRunner.lua'
+    'MTADebug/MTADebug.lua',
+
+    #'MTAUnit/MTAUnit.lua',
+    #'MTAUnit/UnitTest.lua',
+    #'MTAUnit/TestRunner.lua'
+
+    'Entrypoint.lua'
 ]
 
 # Create output file

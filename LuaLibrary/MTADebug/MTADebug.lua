@@ -176,8 +176,6 @@ function MTATD.MTADebug:_fetchBreakpoints(wait)
                 end
                 self._breakpoints[breakpoint.file][breakpoint.line] = true
             end
-            
-            iprint(self._breakpoints)
 
             responseAvailable = true
         end

@@ -26,7 +26,7 @@ function MTATD.MTADebug:constructor(backend)
     self._resumeMode = ResumeMode.Resume
 
     -- Enable development mode
-    --setDevelopmentMode(true, true) -- TODO
+    setDevelopmentMode(true)
 
     -- Send info about us to backend
     self._backend:request("MTADebug/set_info", {
@@ -109,6 +109,11 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
         -- Ask backend
         self._backend:request("MTADebug/get_resume_mode", {},
             function(info)
+                -- Continue in case of a failure (to prevent a freeze)
+                if not info then
+                    continue = true
+                end
+
                 self._resumeMode = info.resume_mode
 
                 if info.resume_mode ~= ResumeMode.Paused then
@@ -158,7 +163,7 @@ function MTATD.MTADebug:_fetchBreakpoints(wait)
         function(breakpoints)
             local basePath = self:_getResourceBasePath()
 
-            for k, breakpoint in ipairs(breakpoints) do
+            for k, breakpoint in ipairs(breakpoints or {}) do
                 -- Prepend resource base path
                 breakpoint.file = basePath..breakpoint.file
 

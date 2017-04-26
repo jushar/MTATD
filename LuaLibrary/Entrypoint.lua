@@ -13,5 +13,6 @@ addEventHandler(triggerClientEvent and "onResourceStop" or "onClientResourceStop
     function()
         destroyMTATD()
     end,
+    true,
     "low-9999999"
 )

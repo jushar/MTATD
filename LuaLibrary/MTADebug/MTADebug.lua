@@ -163,6 +163,10 @@ function MTATD.MTADebug:_fetchBreakpoints(wait)
         function(breakpoints)
             local basePath = self:_getResourceBasePath()
 
+            -- Clear old breakpoints
+            self._breakpoints = {}
+
+            -- Add new breakpoints
             for k, breakpoint in ipairs(breakpoints or {}) do
                 -- Prepend resource base path
                 breakpoint.file = basePath..breakpoint.file

@@ -84,11 +84,6 @@ class MTASADebugSession extends DebugSession {
 	 * to interrogate the features the debug adapter provides.
 	 */
 	protected initializeRequest(response: DebugProtocol.InitializeResponse, args: DebugProtocol.InitializeRequestArguments): void {
-		// since this debug adapter can accept configuration requests like 'setBreakpoint' at any time,
-		// we request them early by sending an 'initializeRequest' to the frontend.
-		// The frontend will end the configuration sequence by calling 'configurationDone' request.
-		this.sendEvent(new InitializedEvent());
-
 		// This debug adapter implements the configurationDoneRequest.
 		//response.body.supportsConfigurationDoneRequest = true;
 
@@ -128,6 +123,9 @@ class MTASADebugSession extends DebugSession {
 			if (!this._pollPausedTimer)
 				this._pollPausedTimer = setInterval(() => { this.checkForPausedTick(); }, 1000);
 
+			// We know got a list of breakpoints, so tell VSCode we're ready
+			this.sendEvent(new InitializedEvent());
+
 			// We just start to run until we hit a breakpoint or an exception
 			this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: MTASADebugSession.THREAD_ID });
 		});
@@ -152,13 +150,16 @@ class MTASADebugSession extends DebugSession {
 		const path = args.source.path;
 		const clientLines = args.lines;
 
+		// Clear old breakpoints
+		request(this._backendUrl + "/MTADebug/clear_breakpoints")
+
 		// Read file contents into array for direct access
 		const lines = readFileSync(path).toString().split('\n');
 
 		const breakpoints = new Array<Breakpoint>();
 
 		// verify breakpoint locations
-		for (var i = 0; i < clientLines.length; i++) {
+		for (let i = 0; i < clientLines.length; i++) {
 			let l = this.convertClientLineToDebugger(clientLines[i]);
 
 			if (l < lines.length) {

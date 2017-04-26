@@ -54,6 +54,7 @@ func NewMTADebugAPI(router *mux.Router) *MTADebugAPI {
 	router.HandleFunc("/get_breakpoints", api.handlerGetBreakpoints)
 	router.HandleFunc("/set_breakpoint", api.handlerSetBreakpoint)
 	router.HandleFunc("/remove_breakpoint", api.handlerRemoveBreakpoint)
+	router.HandleFunc("/clear_breakpoints", api.handlerClearBreakpoints)
 
 	router.HandleFunc("/get_resume_mode", api.handlerGetResumeMode)
 	router.HandleFunc("/set_resume_mode", api.handlerSetResumeMode)
@@ -100,6 +101,12 @@ func (api *MTADebugAPI) handlerRemoveBreakpoint(res http.ResponseWriter, req *ht
 	}
 
 	json.NewEncoder(res).Encode(&breakpoint)
+}
+
+func (api *MTADebugAPI) handlerClearBreakpoints(res http.ResponseWriter, req *http.Request) {
+	api.Breakpoints = []debugBreakpoint{}
+
+	json.NewEncoder(res).Encode(&api.Breakpoints)
 }
 
 func (api *MTADebugAPI) handlerGetResumeMode(res http.ResponseWriter, req *http.Request) {

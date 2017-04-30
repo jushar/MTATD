@@ -62,7 +62,7 @@ class MTASADebugSession extends DebugSession {
 
 	private _variableHandles = new Handles<string>();
 
-	private _backendUrl: string = 'http://localhost:8080';
+	private _backendUrl: string = 'http://localhost:51237';
 
 	private _resourceName: string;
 	private _resourcePath: string;

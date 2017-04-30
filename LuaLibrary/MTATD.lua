@@ -5,6 +5,8 @@
 -- PURPOSE: Shared across all MTA:TD modules
 ------------------------------------------------------------
 MTATD = {}
+MTATD.Host = "localhost"
+MTATD.Port = "51237"
 
 -- Class micro framework
 MTATD.Class = setmetatable({}, {
@@ -25,7 +27,7 @@ end
 
 -- Entrypoint function
 function initMTATD()
-    MTATD.Backend:new("localhost", 8080)
+    MTATD.Backend:new(MTATD.Host, MTATD.Port)
 end
 
 -- Exitpoint function

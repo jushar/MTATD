@@ -13,8 +13,8 @@ import (
 
 func main() {
 	// Check args
-	if len(os.Args) < 2 {
-		fmt.Println("ERROR: The path to the MTA:SA server must be passed as parameter")
+	if len(os.Args) < 3 {
+		fmt.Printf("ERROR: Syntax %s <server-path> <backend-port>", os.Args[0])
 		return
 	}
 
@@ -36,7 +36,7 @@ func main() {
 	// Start HTTP server
 	fmt.Println("Launching HTTP server...")
 	http.Handle("/", router)
-	go http.ListenAndServe(":8080", nil)
+	go http.ListenAndServe(":"+os.Args[2], nil)
 
 	// Wait for input
 	scanner := bufio.NewScanner(os.Stdin)

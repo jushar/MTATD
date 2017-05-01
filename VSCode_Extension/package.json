@@ -1,9 +1,13 @@
 {
   "name": "mtatd",
-  "displayName": "MTA:SA Lua Debugger",
-  "description": "MTA:SA Test and Debug Framework",
-  "version": "0.0.1",
+  "displayName": "MTA:SA Debugger and Test Framework",
+  "description": "MTA:TD allows you to debug and test your Lua code easily",
+  "version": "1.0.0",
   "publisher": "jusonex",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jusonex/MTATD.git"
+  },
   "engines": {
     "vscode": "^1.10.0"
   },
@@ -14,6 +18,7 @@
     "onCommand:extension.startMTA"
   ],
   "main": "./out/src/extension",
+  "icon": "icon.png",
   "contributes": {
     "commands": [
       {
@@ -24,7 +29,7 @@
     "debuggers": [
       {
         "type": "mtasa",
-        "label": "MTA:SA Debug",
+        "label": "MTA:SA Debugger",
         "program": "./out/src/mtasaDebug.js",
         "runtime": "node",
         "configurationAttributes": {

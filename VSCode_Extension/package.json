@@ -18,7 +18,7 @@
     "commands": [
       {
         "command": "extension.startMTA",
-        "title": "Start MTA:SA Server"
+        "title": "MTA:SA: Start Debug Server"
       }
     ],
     "debuggers": [

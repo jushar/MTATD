@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 
 import { exec, ChildProcess } from 'child_process';
 import { normalize } from 'path';
+import * as ps from 'ps-node';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -22,15 +23,22 @@ export function activate(context: vscode.ExtensionContext) {
             info = info.filter(v => v.type === "mtasa");
 
             if (info[0]) {
-                // Display a message box to the user
-                vscode.window.showInformationMessage('Starting MTA:SA server right now');
+                // Show error if debug server is running already
+                ps.lookup({
+                    command: 'DebugServer'
+                }, (err, resultList) => {
+                    if (!resultList || resultList.length > 0) {
+                        vscode.window.showErrorMessage('Could not start the debug server, because there is one running already!');
+                        return;
+                    }
 
-                // Get extension path (the DebugServer lays there)
-                const extensionPath = normalize(vscode.extensions.getExtension('jusonex.mtatd').extensionPath);
+                    // Get extension path (the DebugServer lays there)
+                    const extensionPath = normalize(vscode.extensions.getExtension('jusonex.mtatd').extensionPath);
 
-                // Start server
-                const path = normalize(info[0].serverpath + '/MTA Server.exe');
-                exec(`start "MTA:SA Server [SCRIPT-DEBUG]" "${extensionPath}\\DebugServer.exe" "${path}" 51237`);
+                    // Start server
+                    const path = normalize(info[0].serverpath + '/MTA Server.exe');
+                    exec(`start "MTA:SA Server [SCRIPT-DEBUG]" "${extensionPath}\\DebugServer.exe" "${path}" 51237`);
+                });
             }
         }
     });

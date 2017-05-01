@@ -34,6 +34,9 @@ function MTATD.MTADebug:constructor(backend)
         resource_path = self:_getResourceBasePath()
     })
 
+    -- Wait a bit (so that the backend receives the breakpoints)
+    debugSleep(1000)
+
     -- Initially fetch the breakpoints from the backend
     -- and wait till they're received
     self:_fetchBreakpoints(true)
@@ -142,7 +145,7 @@ end
 -- Returns true if there is a breakpoint, false otherwise
 -----------------------------------------------------------
 function MTATD.MTADebug:hasBreakpoint(fileName, lineNumber)
-    local breakpoints = self._breakpoints[fileName]
+    local breakpoints = self._breakpoints[fileName:lower()]
     if breakpoints then
         return breakpoints[lineNumber]
     end
@@ -232,7 +235,7 @@ function MTATD.MTADebug:_getResourceBasePath()
 
     if triggerClientEvent then -- Is server?
         local organizationalPath = getResourceOrganizationalPath(thisResource)
-        return getResourceName(thisResource).."/"..(organizationalPath ~= "" and organizationalPath.."/" or "")
+        return (organizationalPath ~= "" and organizationalPath.."/" or "")..getResourceName(thisResource).."/"
     else
         return getResourceName(thisResource).."/"
     end

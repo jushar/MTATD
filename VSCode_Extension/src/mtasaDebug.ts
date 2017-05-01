@@ -65,6 +65,7 @@ class MTASADebugSession extends DebugSession {
 	private _backendUrl: string = 'http://localhost:51237';
 
 	private _resourceName: string;
+	private _resourcesPath: string;
 	private _resourcePath: string;
 
 	private _isRunning: boolean = false;
@@ -123,6 +124,7 @@ class MTASADebugSession extends DebugSession {
 				}
 
 				this._resourceName = info.resource_name;
+				this._resourcesPath = normalize(`${args.serverpath}/mods/deathmatch/resources/`);
 				this._resourcePath = normalize(`${args.serverpath}/mods/deathmatch/resources/${info.resource_path}`);
 
 				// Start timer that polls for the execution being paused
@@ -138,7 +140,7 @@ class MTASADebugSession extends DebugSession {
 				// Clear interval as we successfully received the info
 				clearInterval(interval)
 			});
-		}, 500);
+		}, 200);
 	}
 
 	/**
@@ -221,7 +223,7 @@ class MTASADebugSession extends DebugSession {
 		const frames = new Array<StackFrame>();
 		
 		// Only the current stack frame is supported for now
-		const currentFilePath = this.getAbsoluteResourcePath(this._currentFile);
+		const currentFilePath = this._resourcesPath + this._currentFile;
 		frames.push(new StackFrame(0, 'Frame 0', new Source(basename(currentFilePath),
 				this.convertDebuggerPathToClient(currentFilePath)),
 				this.convertDebuggerLineToClient(this._currentLine), 0));
@@ -383,19 +385,7 @@ class MTASADebugSession extends DebugSession {
 	private getRelativeResourcePath(absolutePath: string) {
 		const relativePath = normalize(absolutePath).toLowerCase().replace(this._resourcePath.toLowerCase(), '');
 		
-		return relativePath.replace('\\', '/');
-	}
-
-	/**
-	 * Returns the absolute path from a relative path
-	 * @param relativePath The relative path (e.g. "<resourcenName>/server.lua")
-	 * @return The absolute path
-	 */
-	private getAbsoluteResourcePath(relativePath: string) {
-		// Drop the resource name to prevent it from being in the string twice
-		relativePath = relativePath.replace(/(.*?)\/(.*)/, '$2');
-
-		return this._resourcePath + relativePath;
+		return relativePath.replace(/\\/g, '/');
 	}
 
 	private log(msg: string, line: number) {

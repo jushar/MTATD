@@ -19,8 +19,8 @@ function MTATD.Class:new(...)
     end
 end
 function MTATD.Class:delete(...)
-    if obj.destructor then
-        obj:destructor(...)
+    if self.destructor then
+        self:destructor(...)
     end
 end
 

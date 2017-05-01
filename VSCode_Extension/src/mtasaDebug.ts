@@ -105,30 +105,40 @@ class MTASADebugSession extends DebugSession {
 		}
 
 		// Delay request shortly if the MTA Server is not running yet
-		// TODO
-		
-		// Get info about debuggee
-		request(this._backendUrl + '/MTADebug/get_info', (err, res, body) => {
-			if (err || res.statusCode != 200) {
-				// TODO: Show error
-				return;
-			}
+		let interval: NodeJS.Timer;
+		interval = setInterval(() => {		
+			// Get info about debuggee
+			request(this._backendUrl + '/MTADebug/get_info', (err, res, body) => {
+				if (err || res.statusCode != 200) {
+					// Try again soon
+					return;
+				}
 
-			// Apply path from response
-			const info = JSON.parse(body);
-			this._resourceName = info.resource_name;
-			this._resourcePath = normalize(`${args.serverpath}/mods/deathmatch/resources/${info.resource_path}`);
+				// Apply path from response
+				const info = JSON.parse(body);
+				if (!info.resource_name || !info.resource_path)
+				{
+					// Try again soon
+					return;
+				}
 
-			// Start timer that polls for the execution being paused
-			if (!this._pollPausedTimer)
-				this._pollPausedTimer = setInterval(() => { this.checkForPausedTick(); }, 1000);
+				this._resourceName = info.resource_name;
+				this._resourcePath = normalize(`${args.serverpath}/mods/deathmatch/resources/${info.resource_path}`);
 
-			// We know got a list of breakpoints, so tell VSCode we're ready
-			this.sendEvent(new InitializedEvent());
+				// Start timer that polls for the execution being paused
+				if (!this._pollPausedTimer)
+					this._pollPausedTimer = setInterval(() => { this.checkForPausedTick(); }, 500);
 
-			// We just start to run until we hit a breakpoint or an exception
-			this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: MTASADebugSession.THREAD_ID });
-		});
+				// We know got a list of breakpoints, so tell VSCode we're ready
+				this.sendEvent(new InitializedEvent());
+
+				// We just start to run until we hit a breakpoint or an exception
+				this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: MTASADebugSession.THREAD_ID });
+
+				// Clear interval as we successfully received the info
+				clearInterval(interval)
+			});
+		}, 500);
 	}
 
 	/**

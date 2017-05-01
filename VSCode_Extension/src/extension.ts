@@ -30,7 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
 
                 // Start server
                 const path = normalize(info[0].serverpath + '/MTA Server.exe');
-                exec(`start "" "${extensionPath}\\DebugServer.exe" "${path} 51237"`); // TODO: Insert packaged path here
+                exec(`start "MTA:SA Server [SCRIPT-DEBUG]" "${extensionPath}\\DebugServer.exe" "${path}" 51237`);
             }
         }
     });

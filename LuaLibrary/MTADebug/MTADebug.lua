@@ -12,7 +12,9 @@ MTATD.MTADebug = MTATD.Class()
 local ResumeMode = {
     Resume = 0,
     Paused = 1,
-    LineStep = 2
+    StepInto = 2,
+    StepOver = 3,
+    StepOut = 4
 }
 
 -----------------------------------------------------------
@@ -24,6 +26,7 @@ function MTATD.MTADebug:constructor(backend)
     self._backend = backend
     self._breakpoints = {}
     self._resumeMode = ResumeMode.Resume
+    self._stepOverStackSize = 0
 
     -- Enable development mode
     setDevelopmentMode(true)
@@ -42,7 +45,7 @@ function MTATD.MTADebug:constructor(backend)
     self:_fetchBreakpoints(true)
 
     -- Install debug hook
-    debug.sethook(function(...) self:_hookFunction(...) end, "l")
+    debug.sethook(function(...) self:_hookFunction(...) end, "crl")
 
     -- Update things once per 3 seconds asynchronously
     self._updateTimer = setTimer(
@@ -79,8 +82,16 @@ end
 -- nextLineNumber (number): The next line that is executed
 -----------------------------------------------------------
 function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
-    -- Ignore other types
-    if hookType ~= "line" then
+    if hookType == "call" then
+        if self._resumeMode == ResumeMode.StepOver then
+            self._stepOverStackSize = self._stepOverStackSize + 1
+        end
+        return
+    end
+    if hookType == "return" or hookType == "tail return" then
+        if self._resumeMode == ResumeMode.StepOver then
+            self._stepOverStackSize = self._stepOverStackSize - 1
+        end
         return
     end
 
@@ -89,7 +100,10 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
     debugInfo.short_src = debugInfo.short_src:gsub("\\", "/")
 
     -- Is there a breakpoint and pending line step?
-    if not self:hasBreakpoint(debugInfo.short_src, nextLineNumber) and self._resumeMode ~= ResumeMode.LineStep then
+    if (not self:hasBreakpoint(debugInfo.short_src, nextLineNumber) and self._resumeMode ~= ResumeMode.StepInto)
+        and (self._resumeMode ~= ResumeMode.StepOver or self._stepOverStackSize > 0) then
+
+        -- Continue normally
         return
     end
 
@@ -118,6 +132,7 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
                 end
 
                 self._resumeMode = info.resume_mode
+                self._stepOverStackSize = 0
 
                 if info.resume_mode ~= ResumeMode.Paused then
                     continue = true

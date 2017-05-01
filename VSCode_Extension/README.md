@@ -3,7 +3,7 @@ This extension implements a debug adapter for MTA:SA's (Multi Theft Auto: San An
 
 ## Features
 * Breakpoints
-* Line steps
+* Step into, Step over
 * Variable lists (locals, upvalues, globals)
 * Resource restarts
 * Integrated *runcode* via VSCode's "Debug Console" feature

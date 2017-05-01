@@ -32,7 +32,9 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 enum ResumeMode {
 	Resume = 0,
 	Paused,
-	LineStep
+	StepInto,
+	StepOver,
+	StepOut
 }
 
 class MTASADebugSession extends DebugSession {
@@ -318,9 +320,22 @@ class MTASADebugSession extends DebugSession {
 	 * Called when a step to the next line is requested
 	 */
 	protected nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): void {
-		// Send line step request to backend
+		// Send step over request to backend
 		request(this._backendUrl + '/MTADebug/set_resume_mode', {
-			json: { resume_mode: ResumeMode.LineStep }
+			json: { resume_mode: ResumeMode.StepOver }
+		}, () => {
+			this._isRunning = false;
+			this.sendResponse(response);
+		});
+	}
+
+	/**
+	 * Called when a step into is requested
+	 */
+	protected stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): void {
+		// Send step in request to backend
+		request(this._backendUrl + '/MTADebug/set_resume_mode', {
+			json: { resume_mode: ResumeMode.StepInto }
 		}, () => {
 			this._isRunning = false;
 			this.sendResponse(response);
@@ -384,7 +399,7 @@ class MTASADebugSession extends DebugSession {
 	 */
 	private getRelativeResourcePath(absolutePath: string) {
 		const relativePath = normalize(absolutePath).toLowerCase().replace(this._resourcePath.toLowerCase(), '');
-		
+
 		return relativePath.replace(/\\/g, '/');
 	}
 

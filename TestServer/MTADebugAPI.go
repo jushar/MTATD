@@ -8,12 +8,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const (
-	RESUME_MODE_RESUME    = 0
-	RESUME_MODE_PAUSED    = 1
-	RESUME_MODE_LINE_STEP = 2
-)
-
 type MTADebugAPI struct {
 	Breakpoints             []debugBreakpoint
 	ResumeMode              int
@@ -43,7 +37,7 @@ func NewMTADebugAPI(router *mux.Router) *MTADebugAPI {
 	// Create instance
 	api := new(MTADebugAPI)
 	api.Breakpoints = []debugBreakpoint{}
-	api.ResumeMode = RESUME_MODE_RESUME
+	api.ResumeMode = 0 // ResumeMode.Resume
 	api.PendingEval = ""
 	api.EvalResult = ""
 

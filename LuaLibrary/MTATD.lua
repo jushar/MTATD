@@ -26,11 +26,12 @@ end
 
 
 -- Entrypoint function
+local backend
 function initMTATD()
-    MTATD.Backend:new(MTATD.Host, MTATD.Port)
+    backend = MTATD.Backend:new(MTATD.Host, MTATD.Port)
 end
 
 -- Exitpoint function
 function destroyMTATD()
-    MTATD.Backend:delete()
+    backend:delete()
 end

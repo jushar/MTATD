@@ -37,25 +37,33 @@ enum ResumeMode {
 	StepOut
 }
 
+class DebugContext {
+	public typeSuffix: string;
+	public threadId: number;
+	public file: string;
+	public line: number;
+	public running: boolean = false;
+
+	public localVariables: Object;
+	public upvalueVariables: Object;
+	public globalVariables: Object;
+}
+
 class MTASADebugSession extends DebugSession {
 
-	// we don't support multiple threads, so we can use a hardcoded ID for the default thread
-	private static THREAD_ID = 1;
+	// Dummy thread ID for the server and client
+	private static SERVER_THREAD_ID = 1;
+	private static CLIENT_THREAD_ID = 2;
 
 	// since we want to send breakpoint events, we will assign an id to every event
 	// so that the frontend can match events with breakpoints.
 	private _breakpointId = 1000;
 
-	// the initial (and one and only) file we are 'debugging'
-	private _currentFile: string;
+	// Debug contexts that hold info about variables, file, line etc.
+	private _serverContext: DebugContext = new DebugContext();
+	private _clientContext: DebugContext = new DebugContext();
 
-	// This is the next line that will be 'executed'
-	private _currentLine = 0;
-
-	// Current local, upvalue and global variables
-	private _currentLocalVariables: Object;
-	private _currentUpvalueVariables: Object;
-	private _currentGlobalVariables: Object;
+	private _currentThreadId: number;
 
 	// maps from sourceFile to array of Breakpoints
 	private _breakPoints = new Map<string, DebugProtocol.Breakpoint[]>();
@@ -70,8 +78,6 @@ class MTASADebugSession extends DebugSession {
 	private _resourcesPath: string;
 	private _resourcePath: string;
 
-	private _isRunning: boolean = false;
-
 	/**
 	 * Creates a new debug adapter that is used for one debug session.
 	 * We configure the default implementation of a debug adapter here.
@@ -80,6 +86,12 @@ class MTASADebugSession extends DebugSession {
 		super();
 
 		this.setDebuggerLinesStartAt1(true);
+
+		// Set thread IDs for contexts
+		this._serverContext.typeSuffix = '_server';
+		this._clientContext.typeSuffix = '_client';
+		this._serverContext.threadId = MTASADebugSession.SERVER_THREAD_ID;
+		this._clientContext.threadId = MTASADebugSession.CLIENT_THREAD_ID;
 	}
 
 	/**
@@ -107,11 +119,16 @@ class MTASADebugSession extends DebugSession {
 			Logger.setup(Logger.LogLevel.Verbose, /*logToFile=*/false);
 		}
 
+		this.continueFor(this._serverContext, response, args);
+		this.continueFor(this._clientContext, response, args);
+	}
+
+	protected continueFor(debugContext: DebugContext, response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments) {
 		// Delay request shortly if the MTA Server is not running yet
 		let interval: NodeJS.Timer;
 		interval = setInterval(() => {		
 			// Get info about debuggee
-			request(this._backendUrl + '/MTADebug/get_info_server', (err, res, body) => {
+			request(this._backendUrl + '/MTADebug/get_info' + debugContext.typeSuffix, (err, res, body) => {
 				if (err || res.statusCode != 200) {
 					// Try again soon
 					return;
@@ -126,7 +143,7 @@ class MTASADebugSession extends DebugSession {
 				}
 
 				this._resourceName = info.resource_name;
-				this._resourcesPath = normalize(`${args.serverpath}/mods/deathmatch/resources/`);
+				this._resourcesPath = normalize(`${args.serverpath}/mods/deathmatch/resources/`); // TODO
 				this._resourcePath = normalize(`${args.serverpath}/mods/deathmatch/resources/${info.resource_path}`);
 
 				// Start timer that polls for the execution being paused
@@ -137,7 +154,7 @@ class MTASADebugSession extends DebugSession {
 				this.sendEvent(new InitializedEvent());
 
 				// We just start to run until we hit a breakpoint or an exception
-				this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: MTASADebugSession.THREAD_ID });
+				this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: debugContext.threadId });
 
 				// Clear interval as we successfully received the info
 				clearInterval(interval)
@@ -212,7 +229,8 @@ class MTASADebugSession extends DebugSession {
 		// Return the default thread
 		response.body = {
 			threads: [
-				new Thread(MTASADebugSession.THREAD_ID, "thread 1")
+				new Thread(MTASADebugSession.SERVER_THREAD_ID, "Server"),
+				new Thread(MTASADebugSession.CLIENT_THREAD_ID, "Client")
 			]
 		};
 		this.sendResponse(response);
@@ -223,12 +241,14 @@ class MTASADebugSession extends DebugSession {
 	 */
 	protected stackTraceRequest(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): void {
 		const frames = new Array<StackFrame>();
+		const debugContext = this.getDebugContextByThreadId(args.threadId);
+		this._currentThreadId = args.threadId;
 		
 		// Only the current stack frame is supported for now
-		const currentFilePath = this._resourcesPath + this._currentFile;
+		const currentFilePath = this._resourcesPath + debugContext.file;
 		frames.push(new StackFrame(0, 'Frame 0', new Source(basename(currentFilePath),
 				this.convertDebuggerPathToClient(currentFilePath)),
-				this.convertDebuggerLineToClient(this._currentLine), 0));
+				this.convertDebuggerLineToClient(debugContext.line), 0));
 		
 		// Craft response
 		response.body = {
@@ -244,6 +264,7 @@ class MTASADebugSession extends DebugSession {
 	protected scopesRequest(response: DebugProtocol.ScopesResponse, args: DebugProtocol.ScopesArguments): void {
 		const frameReference = args.frameId;
 		const scopes = new Array<Scope>();
+
 		scopes.push(new Scope("Local", this._variableHandles.create("local_" + frameReference), false));
 		scopes.push(new Scope("Closure", this._variableHandles.create("closure_" + frameReference), false));
 		scopes.push(new Scope("Global", this._variableHandles.create("global_" + frameReference), false));
@@ -260,37 +281,38 @@ class MTASADebugSession extends DebugSession {
 	protected variablesRequest(response: DebugProtocol.VariablesResponse, args: DebugProtocol.VariablesArguments): void {
 		const variables = [];
 		const id = this._variableHandles.get(args.variablesReference);
+		const debugContext = this.getDebugContextByThreadId(this._currentThreadId);
 		
 		// TODO: Use variablesReference to show the entries in tables
 		if (id.startsWith('local')) {
-			for (const name in this._currentLocalVariables) {
-				if (this._currentLocalVariables.hasOwnProperty(name) && name != '__isObject') {
+			for (const name in debugContext.localVariables) {
+				if (debugContext.localVariables.hasOwnProperty(name) && name != '__isObject') {
 					variables.push({
 						name: name,
 						type: 'string', // TODO: Map type properly
-						value: this._currentLocalVariables[name],
+						value: debugContext.localVariables[name],
 						variablesReference: 0
 					});
 				}
 			}
 		} else if (id.startsWith('closure')) {
-			for (const name in this._currentUpvalueVariables) {
-				if (this._currentUpvalueVariables.hasOwnProperty(name) && name != '__isObject') {
+			for (const name in debugContext.upvalueVariables) {
+				if (debugContext.upvalueVariables.hasOwnProperty(name) && name != '__isObject') {
 					variables.push({
 						name: name,
 						type: 'string', // TODO: Map type properly
-						value: this._currentUpvalueVariables[name],
+						value: debugContext.upvalueVariables[name],
 						variablesReference: 0
 					});
 				}
 			}
 		} else if (id.startsWith('global')) {
-			for (const name in this._currentGlobalVariables) {
-				if (this._currentGlobalVariables.hasOwnProperty(name) && name != '__isObject') {
+			for (const name in debugContext.globalVariables) {
+				if (debugContext.globalVariables.hasOwnProperty(name) && name != '__isObject') {
 					variables.push({
 						name: name,
 						type: 'string', // TODO: Map type properly
-						value: this._currentGlobalVariables[name],
+						value: debugContext.globalVariables[name],
 						variablesReference: 0
 					});
 				}
@@ -307,11 +329,13 @@ class MTASADebugSession extends DebugSession {
 	 * Called when the editor requests the executing to be continued
 	 */
 	protected continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): void {
+		const debugContext = this.getDebugContextByThreadId(args.threadId);
+
 		// Send continue request to backend
-		request(this._backendUrl + '/MTADebug/set_resume_mode_server', {
+		request(this._backendUrl + '/MTADebug/set_resume_mode' + debugContext.typeSuffix, {
 			json: { resume_mode: ResumeMode.Resume }
 		}, () => {
-			this._isRunning = true;
+			debugContext.running = true;
 			this.sendResponse(response);
 		});
 	}
@@ -320,11 +344,13 @@ class MTASADebugSession extends DebugSession {
 	 * Called when a step to the next line is requested
 	 */
 	protected nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): void {
+		const debugContext = this.getDebugContextByThreadId(args.threadId);
+
 		// Send step over request to backend
-		request(this._backendUrl + '/MTADebug/set_resume_mode_server', {
+		request(this._backendUrl + '/MTADebug/set_resume_mode' + debugContext.typeSuffix, {
 			json: { resume_mode: ResumeMode.StepOver }
 		}, () => {
-			this._isRunning = false;
+			debugContext.running = false;
 			this.sendResponse(response);
 		});
 	}
@@ -333,11 +359,13 @@ class MTASADebugSession extends DebugSession {
 	 * Called when a step into is requested
 	 */
 	protected stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): void {
+		const debugContext = this.getDebugContextByThreadId(args.threadId);
+
 		// Send step in request to backend
-		request(this._backendUrl + '/MTADebug/set_resume_mode_server', {
+		request(this._backendUrl + '/MTADebug/set_resume_mode' + debugContext.typeSuffix, {
 			json: { resume_mode: ResumeMode.StepInto }
 		}, () => {
-			this._isRunning = false;
+			debugContext.running = false;
 			this.sendResponse(response);
 		});
 	}
@@ -377,15 +405,35 @@ class MTASADebugSession extends DebugSession {
 				// Check if paused
 				if (obj.resume_mode == ResumeMode.Paused) {
 					// Store the breakpoint's file and line
-					this._currentFile = obj.current_file;
-					this._currentLine = obj.current_line;
+					this._serverContext.file = obj.current_file;
+					this._serverContext.line = obj.current_line;
 
-					this._currentLocalVariables = obj.local_variables;
-					this._currentUpvalueVariables = obj.upvalue_variables;
-					this._currentGlobalVariables = obj.global_variables;
+					this._serverContext.localVariables = obj.local_variables;
+					this._serverContext.upvalueVariables = obj.upvalue_variables;
+					this._serverContext.globalVariables = obj.global_variables;
 
-					this._isRunning = false;
-					this.sendEvent(new StoppedEvent('breakpoint', MTASADebugSession.THREAD_ID));
+					this._serverContext.running = false;
+					this.sendEvent(new StoppedEvent('breakpoint', this._serverContext.threadId));
+				}
+			}
+		});
+
+		request(this._backendUrl + '/MTADebug/get_resume_mode_client', (err, response, body) => {
+			if (!err && response.statusCode === 200) {
+				const obj = JSON.parse(body);
+
+				// Check if paused
+				if (obj.resume_mode == ResumeMode.Paused) {
+					// Store the breakpoint's file and line
+					this._clientContext.file = obj.current_file;
+					this._clientContext.line = obj.current_line;
+
+					this._clientContext.localVariables = obj.local_variables;
+					this._clientContext.upvalueVariables = obj.upvalue_variables;
+					this._clientContext.globalVariables = obj.global_variables;
+
+					this._clientContext.running = false;
+					this.sendEvent(new StoppedEvent('breakpoint', this._clientContext.threadId));
 				}
 			}
 		});
@@ -407,6 +455,10 @@ class MTASADebugSession extends DebugSession {
 		const e = new OutputEvent(`${msg}: ${line}\n`);
 		(<DebugProtocol.OutputEvent>e).body.variablesReference = this._variableHandles.create("args");
 		this.sendEvent(e);	// print current line on debug console
+	}
+
+	private getDebugContextByThreadId(threadId: number): DebugContext {
+		return threadId === MTASADebugSession.SERVER_THREAD_ID ? this._serverContext : this._clientContext;
 	}
 }
 

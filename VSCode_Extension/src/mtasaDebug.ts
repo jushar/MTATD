@@ -111,7 +111,7 @@ class MTASADebugSession extends DebugSession {
 		let interval: NodeJS.Timer;
 		interval = setInterval(() => {		
 			// Get info about debuggee
-			request(this._backendUrl + '/MTADebug/get_info', (err, res, body) => {
+			request(this._backendUrl + '/MTADebug/get_info_server', (err, res, body) => {
 				if (err || res.statusCode != 200) {
 					// Try again soon
 					return;
@@ -308,7 +308,7 @@ class MTASADebugSession extends DebugSession {
 	 */
 	protected continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): void {
 		// Send continue request to backend
-		request(this._backendUrl + '/MTADebug/set_resume_mode', {
+		request(this._backendUrl + '/MTADebug/set_resume_mode_server', {
 			json: { resume_mode: ResumeMode.Resume }
 		}, () => {
 			this._isRunning = true;
@@ -321,7 +321,7 @@ class MTASADebugSession extends DebugSession {
 	 */
 	protected nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): void {
 		// Send step over request to backend
-		request(this._backendUrl + '/MTADebug/set_resume_mode', {
+		request(this._backendUrl + '/MTADebug/set_resume_mode_server', {
 			json: { resume_mode: ResumeMode.StepOver }
 		}, () => {
 			this._isRunning = false;
@@ -334,7 +334,7 @@ class MTASADebugSession extends DebugSession {
 	 */
 	protected stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): void {
 		// Send step in request to backend
-		request(this._backendUrl + '/MTADebug/set_resume_mode', {
+		request(this._backendUrl + '/MTADebug/set_resume_mode_server', {
 			json: { resume_mode: ResumeMode.StepInto }
 		}, () => {
 			this._isRunning = false;
@@ -370,7 +370,7 @@ class MTASADebugSession extends DebugSession {
 	 * Polls the backend for the current execution state
 	 */
 	protected checkForPausedTick() {
-		request(this._backendUrl + '/MTADebug/get_resume_mode', (err, response, body) => {
+		request(this._backendUrl + '/MTADebug/get_resume_mode_server', (err, response, body) => {
 			if (!err && response.statusCode === 200) {
 				const obj = JSON.parse(body);
 

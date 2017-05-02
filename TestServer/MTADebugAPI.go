@@ -9,24 +9,36 @@ import (
 )
 
 type MTADebugAPI struct {
-	Breakpoints             []debugBreakpoint
-	ResumeMode              int
-	CurrentBreakpoint       debugBreakpoint
-	CurrentLocalVariables   map[string]string
-	CurrentUpvalueVariables map[string]string
-	CurrentGlobalVariables  map[string]string
-	PendingEval             string
-	EvalResult              string
+	Breakpoints       []debugBreakpoint
+	CurrentBreakpoint debugBreakpoint
 
-	Info struct {
-		ResourceName string `json:"resource_name"`
-		ResourcePath string `json:"resource_path"`
-	}
+	ClientContext debugContext
+	ServerContext debugContext
+
+	PendingEval string
+	EvalResult  string
+
+	ServerInfo debugeeInfo
+	ClientInfo debugeeInfo
 }
 
 type debugBreakpoint struct {
 	File string `json:"file"`
 	Line int    `json:"line"`
+}
+
+type debugContext struct {
+	ResumeMode       int               `json:"resume_mode"`
+	File             string            `json:"current_file"`
+	Line             int               `json:"current_line"`
+	LocalVariables   map[string]string `json:"local_variables"`
+	UpvalueVariables map[string]string `json:"upvalue_variables"`
+	GlobalVariables  map[string]string `json:"global_variables"`
+}
+
+type debugeeInfo struct {
+	ResourceName string `json:"resource_name"`
+	ResourcePath string `json:"resource_path"`
 }
 
 func (bp *debugBreakpoint) equals(other *debugBreakpoint) bool {
@@ -36,22 +48,29 @@ func (bp *debugBreakpoint) equals(other *debugBreakpoint) bool {
 func NewMTADebugAPI(router *mux.Router) *MTADebugAPI {
 	// Create instance
 	api := new(MTADebugAPI)
+
 	api.Breakpoints = []debugBreakpoint{}
-	api.ResumeMode = 0 // ResumeMode.Resume
+	api.ServerContext.ResumeMode = 0 // ResumeMode.Resume
+	api.ClientContext.ResumeMode = 0 // ResumeMode.Resume
+
 	api.PendingEval = ""
 	api.EvalResult = ""
 
 	// Register routes
-	router.HandleFunc("/get_info", api.handlerGetInfo)
-	router.HandleFunc("/set_info", api.handlerSetInfo)
+	router.HandleFunc("/get_info_server", api.handlerGetInfoServer)
+	router.HandleFunc("/get_info_client", api.handlerGetInfoClient)
+	router.HandleFunc("/set_info_server", api.handlerSetInfoServer)
+	router.HandleFunc("/set_info_client", api.handlerSetInfoClient)
 
 	router.HandleFunc("/get_breakpoints", api.handlerGetBreakpoints)
 	router.HandleFunc("/set_breakpoint", api.handlerSetBreakpoint)
 	router.HandleFunc("/remove_breakpoint", api.handlerRemoveBreakpoint)
 	router.HandleFunc("/clear_breakpoints", api.handlerClearBreakpoints)
 
-	router.HandleFunc("/get_resume_mode", api.handlerGetResumeMode)
-	router.HandleFunc("/set_resume_mode", api.handlerSetResumeMode)
+	router.HandleFunc("/get_resume_mode_server", api.handlerGetResumeModeServer)
+	router.HandleFunc("/get_resume_mode_client", api.handlerGetResumeModeClient)
+	router.HandleFunc("/set_resume_mode_server", api.handlerSetResumeModeServer)
+	router.HandleFunc("/set_resume_mode_client", api.handlerSetResumeModeClient)
 
 	router.HandleFunc("/get_pending_eval", api.handlerGetPendingEval)
 	router.HandleFunc("/set_pending_eval", api.handlerSetPendingEval)
@@ -103,59 +122,61 @@ func (api *MTADebugAPI) handlerClearBreakpoints(res http.ResponseWriter, req *ht
 	json.NewEncoder(res).Encode(&api.Breakpoints)
 }
 
-func (api *MTADebugAPI) handlerGetResumeMode(res http.ResponseWriter, req *http.Request) {
-	var jsonRes = struct { // TODO: Define proper type
-		ResumeMode       int               `json:"resume_mode"`
-		CurrentFile      string            `json:"current_file"`
-		CurrentLine      int               `json:"current_line"`
-		LocalVariables   map[string]string `json:"local_variables"`
-		UpvalueVariables map[string]string `json:"upvalue_variables"`
-		GlobalVariables  map[string]string `json:"global_variables"`
-	}{api.ResumeMode, api.CurrentBreakpoint.File, api.CurrentBreakpoint.Line, api.CurrentLocalVariables, api.CurrentUpvalueVariables, api.CurrentGlobalVariables}
-
-	json.NewEncoder(res).Encode(&jsonRes)
+func (api *MTADebugAPI) handlerGetResumeModeServer(res http.ResponseWriter, req *http.Request) {
+	json.NewEncoder(res).Encode(&api.ServerContext)
 }
 
-func (api *MTADebugAPI) handlerSetResumeMode(res http.ResponseWriter, req *http.Request) {
-	var jsonReq = struct {
-		ResumeMode       int               `json:"resume_mode"`
-		CurrentFile      string            `json:"current_file"`
-		CurrentLine      int               `json:"current_line"`
-		LocalVariables   map[string]string `json:"local_variables"`
-		UpvalueVariables map[string]string `json:"upvalue_variables"`
-		GlobalVariables  map[string]string `json:"global_variables"`
-	}{}
+func (api *MTADebugAPI) handlerGetResumeModeClient(res http.ResponseWriter, req *http.Request) {
+	json.NewEncoder(res).Encode(&api.ClientContext)
+}
 
-	err := json.NewDecoder(req.Body).Decode(&jsonReq)
+func (api *MTADebugAPI) handlerSetResumeModeServer(res http.ResponseWriter, req *http.Request) {
+	err := json.NewDecoder(req.Body).Decode(&api.ServerContext)
 	if err != nil {
 		panic(err)
 	} else {
-		api.ResumeMode = jsonReq.ResumeMode // TODO: Check range
-
-		api.CurrentBreakpoint.File = jsonReq.CurrentFile
-		api.CurrentBreakpoint.Line = jsonReq.CurrentLine
-
-		api.CurrentLocalVariables = jsonReq.LocalVariables
-		api.CurrentUpvalueVariables = jsonReq.UpvalueVariables
-		api.CurrentGlobalVariables = jsonReq.GlobalVariables
-
-		json.NewEncoder(res).Encode(&jsonReq)
+		json.NewEncoder(res).Encode(&api.ServerContext)
 	}
 }
 
-func (api *MTADebugAPI) handlerGetInfo(res http.ResponseWriter, req *http.Request) {
-	err := json.NewEncoder(res).Encode(&api.Info)
+func (api *MTADebugAPI) handlerSetResumeModeClient(res http.ResponseWriter, req *http.Request) {
+	err := json.NewDecoder(req.Body).Decode(&api.ClientContext)
+	if err != nil {
+		panic(err)
+	} else {
+		json.NewEncoder(res).Encode(&api.ClientContext)
+	}
+}
+
+func (api *MTADebugAPI) handlerGetInfoServer(res http.ResponseWriter, req *http.Request) {
+	err := json.NewEncoder(res).Encode(&api.ServerInfo)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (api *MTADebugAPI) handlerSetInfo(res http.ResponseWriter, req *http.Request) {
-	err := json.NewDecoder(req.Body).Decode(&api.Info)
+func (api *MTADebugAPI) handlerGetInfoClient(res http.ResponseWriter, req *http.Request) {
+	err := json.NewEncoder(res).Encode(&api.ClientInfo)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (api *MTADebugAPI) handlerSetInfoServer(res http.ResponseWriter, req *http.Request) {
+	err := json.NewDecoder(req.Body).Decode(&api.ServerInfo)
 	if err != nil {
 		panic(err)
 	} else {
-		json.NewEncoder(res).Encode(&api.Info)
+		json.NewEncoder(res).Encode(&api.ServerInfo)
+	}
+}
+
+func (api *MTADebugAPI) handlerSetInfoClient(res http.ResponseWriter, req *http.Request) {
+	err := json.NewDecoder(req.Body).Decode(&api.ClientInfo)
+	if err != nil {
+		panic(err)
+	} else {
+		json.NewEncoder(res).Encode(&api.ClientInfo)
 	}
 }
 

@@ -11,6 +11,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
+func logMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		fmt.Printf("[%s] %s\n", req.Method, req.URL)
+
+		next.ServeHTTP(res, req)
+	})
+}
+
 func main() {
 	// Check args
 	if len(os.Args) < 3 {
@@ -35,7 +43,14 @@ func main() {
 
 	// Start HTTP server
 	fmt.Println("Launching HTTP server...")
-	http.Handle("/", router)
+
+	// Handle normally
+	//http.Handle("/", router)
+
+	// Handle via middleware
+	http.Handle("/", logMiddleware(router))
+
+	// Listen in a secondary goroutine
 	go http.ListenAndServe(":"+os.Args[2], nil)
 
 	// Wait for input

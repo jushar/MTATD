@@ -56,7 +56,7 @@ function MTATD.Backend:request(name, data, callback)
     local result = fetchRemote(self._baseUrl..name,
         function(response, errno)
             if errno ~= 0 then
-                error("Could not reach backend (code "..errno..")")
+                error("Could not reach backend (code "..errno..") with "..self._baseUrl..name)
                 responseObject = false -- Make sure we don't run into a freeze'
                 return
             end

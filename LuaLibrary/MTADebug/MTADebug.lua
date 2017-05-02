@@ -16,6 +16,7 @@ local ResumeMode = {
     StepOver = 3,
     StepOut = 4
 }
+local RequestSuffix = triggerClientEvent and "_server" or "_client"
 
 -----------------------------------------------------------
 -- Constructs the MTADebug manager
@@ -32,7 +33,7 @@ function MTATD.MTADebug:constructor(backend)
     setDevelopmentMode(true)
 
     -- Send info about us to backend
-    self._backend:request("MTADebug/set_info", {
+    self._backend:request("MTADebug/set_info"..RequestSuffix, {
         resource_name = getResourceName(getThisResource()),
         resource_path = self:_getResourceBasePath()
     })
@@ -110,7 +111,7 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
     outputDebugString("Reached breakpoint")
 
     -- Tell backend that we reached a breakpoint
-    self._backend:request("MTADebug/set_resume_mode", {
+    self._backend:request("MTADebug/set_resume_mode"..RequestSuffix, {
         resume_mode = ResumeMode.Paused,
         current_file = debugInfo.short_src,
         current_line = nextLineNumber,
@@ -124,7 +125,7 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
     local continue = false
     repeat
         -- Ask backend
-        self._backend:request("MTADebug/get_resume_mode", {},
+        self._backend:request("MTADebug/get_resume_mode"..RequestSuffix, {},
             function(info)
                 -- Continue in case of a failure (to prevent a freeze)
                 if not info then
@@ -212,7 +213,7 @@ end
 -- maybe new resume mode
 -----------------------------------------------------------
 function MTATD.MTADebug:_checkForResumeModeChange()
-    self._backend:request("MTADebug/get_resume_mode", {},
+    self._backend:request("MTADebug/get_resume_mode"..RequestSuffix, {},
         function(info)
             self._resumeMode = info.resume_mode
         end

@@ -17,6 +17,7 @@ function MTATD.Class:new(...)
     if obj.constructor then
         obj:constructor(...)
     end
+    return obj
 end
 function MTATD.Class:delete(...)
     if self.destructor then
@@ -33,5 +34,7 @@ end
 
 -- Exitpoint function
 function destroyMTATD()
-    backend:delete()
+    if backend then
+        backend:delete()
+    end
 end

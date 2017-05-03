@@ -33,10 +33,12 @@ function MTATD.MTADebug:constructor(backend)
     setDevelopmentMode(true)
 
     -- Send info about us to backend
-    self._backend:request("MTADebug/set_info"..RequestSuffix, {
-        resource_name = getResourceName(getThisResource()),
-        resource_path = self:_getResourceBasePath()
-    })
+    if triggerClientEvent then -- Only set the info on the server
+        self._backend:request("MTADebug/set_info", {
+            resource_name = getResourceName(getThisResource()),
+            resource_path = self:_getResourceBasePath()
+        })
+    end
 
     -- Wait a bit (so that the backend receives the breakpoints)
     debugSleep(1000)

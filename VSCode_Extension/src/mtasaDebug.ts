@@ -119,16 +119,11 @@ class MTASADebugSession extends DebugSession {
 			Logger.setup(Logger.LogLevel.Verbose, /*logToFile=*/false);
 		}
 
-		this.continueFor(this._serverContext, response, args);
-		this.continueFor(this._clientContext, response, args);
-	}
-
-	protected continueFor(debugContext: DebugContext, response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments) {
 		// Delay request shortly if the MTA Server is not running yet
 		let interval: NodeJS.Timer;
 		interval = setInterval(() => {		
 			// Get info about debuggee
-			request(this._backendUrl + '/MTADebug/get_info' + debugContext.typeSuffix, (err, res, body) => {
+			request(this._backendUrl + '/MTADebug/get_info', (err, res, body) => {
 				if (err || res.statusCode != 200) {
 					// Try again soon
 					return;
@@ -144,7 +139,7 @@ class MTASADebugSession extends DebugSession {
 
 				this._resourceName = info.resource_name;
 				this._resourcesPath = normalize(`${args.serverpath}/mods/deathmatch/resources/`); // TODO
-				this._resourcePath = normalize(`${args.serverpath}/mods/deathmatch/resources/${info.resource_path}`);
+				this._resourcePath = normalize(this._resourcesPath + info.resource_path);
 
 				// Start timer that polls for the execution being paused
 				if (!this._pollPausedTimer)
@@ -154,7 +149,8 @@ class MTASADebugSession extends DebugSession {
 				this.sendEvent(new InitializedEvent());
 
 				// We just start to run until we hit a breakpoint or an exception
-				this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: debugContext.threadId });
+				this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: this._serverContext.threadId });
+				this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: this._clientContext.threadId });
 
 				// Clear interval as we successfully received the info
 				clearInterval(interval)
@@ -204,18 +200,23 @@ class MTASADebugSession extends DebugSession {
 			const bp = <DebugProtocol.Breakpoint> new Breakpoint(true, this.convertDebuggerLineToClient(l));
 			bp.id = this._breakpointId++;
 			breakpoints.push(bp);
-
-			// Send breakpoint request to backend
-			request(this._backendUrl + "/MTADebug/set_breakpoint", {
-				json: {
-					file: this.getRelativeResourcePath(args.source.path),
-					line: l
-				}
-			});
 		}
 		this._breakPoints.set(path, breakpoints);
 
-		// send back the actual breakpoint positions
+		// Send all breakpoints to backend
+		// TODO: Send all breakpoints at once rather than creating a request for each one
+		this._breakPoints.forEach((breakpoints, path) => {
+			for (const breakpoint of breakpoints) {
+				request(this._backendUrl + "/MTADebug/set_breakpoint", {
+					json: {
+						file: this.getRelativeResourcePath(path),
+						line: this.convertClientLineToDebugger(breakpoint.line)
+					}
+				});
+			}
+		});
+
+		// Send back the actual breakpoint positions
 		response.body = {
 			breakpoints: breakpoints
 		};
@@ -446,9 +447,11 @@ class MTASADebugSession extends DebugSession {
 	 * @return The relative path
 	 */
 	private getRelativeResourcePath(absolutePath: string) {
-		const relativePath = normalize(absolutePath).toLowerCase().replace(this._resourcePath.toLowerCase(), '');
+		//const relativePath = normalize(absolutePath).toLowerCase().replace(this._resourcePath.toLowerCase(), '');
+		const matches = normalize(absolutePath).replace(/\\/g, '/').toLowerCase().match(/.*?resources\/.*?\/(.*)$/);
+		const relativePath: string = matches.length > 0 ? matches[1] : absolutePath;
 
-		return relativePath.replace(/\\/g, '/');
+		return relativePath;
 	}
 
 	private log(msg: string, line: number) {

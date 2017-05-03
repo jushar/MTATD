@@ -18,8 +18,7 @@ type MTADebugAPI struct {
 	PendingEval string
 	EvalResult  string
 
-	ServerInfo debugeeInfo
-	ClientInfo debugeeInfo
+	Info debugeeInfo
 }
 
 type debugBreakpoint struct {
@@ -57,10 +56,8 @@ func NewMTADebugAPI(router *mux.Router) *MTADebugAPI {
 	api.EvalResult = ""
 
 	// Register routes
-	router.HandleFunc("/get_info_server", api.handlerGetInfoServer)
-	router.HandleFunc("/get_info_client", api.handlerGetInfoClient)
-	router.HandleFunc("/set_info_server", api.handlerSetInfoServer)
-	router.HandleFunc("/set_info_client", api.handlerSetInfoClient)
+	router.HandleFunc("/get_info", api.handlerGetInfo)
+	router.HandleFunc("/set_info", api.handlerSetInfo)
 
 	router.HandleFunc("/get_breakpoints", api.handlerGetBreakpoints)
 	router.HandleFunc("/set_breakpoint", api.handlerSetBreakpoint)
@@ -148,35 +145,19 @@ func (api *MTADebugAPI) handlerSetResumeModeClient(res http.ResponseWriter, req 
 	}
 }
 
-func (api *MTADebugAPI) handlerGetInfoServer(res http.ResponseWriter, req *http.Request) {
-	err := json.NewEncoder(res).Encode(&api.ServerInfo)
+func (api *MTADebugAPI) handlerGetInfo(res http.ResponseWriter, req *http.Request) {
+	err := json.NewEncoder(res).Encode(&api.Info)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (api *MTADebugAPI) handlerGetInfoClient(res http.ResponseWriter, req *http.Request) {
-	err := json.NewEncoder(res).Encode(&api.ClientInfo)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func (api *MTADebugAPI) handlerSetInfoServer(res http.ResponseWriter, req *http.Request) {
-	err := json.NewDecoder(req.Body).Decode(&api.ServerInfo)
+func (api *MTADebugAPI) handlerSetInfo(res http.ResponseWriter, req *http.Request) {
+	err := json.NewDecoder(req.Body).Decode(&api.Info)
 	if err != nil {
 		panic(err)
 	} else {
-		json.NewEncoder(res).Encode(&api.ServerInfo)
-	}
-}
-
-func (api *MTADebugAPI) handlerSetInfoClient(res http.ResponseWriter, req *http.Request) {
-	err := json.NewDecoder(req.Body).Decode(&api.ClientInfo)
-	if err != nil {
-		panic(err)
-	} else {
-		json.NewEncoder(res).Encode(&api.ClientInfo)
+		json.NewEncoder(res).Encode(&api.Info)
 	}
 }
 

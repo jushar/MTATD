@@ -7,6 +7,7 @@
 
 -- Namespace for the MTADebug library
 MTATD.MTADebug = MTATD.Class()
+local debug = debug
 
 -- Resume mode enumeration
 local ResumeMode = {

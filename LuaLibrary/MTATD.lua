@@ -29,6 +29,13 @@ end
 -- Entrypoint function
 local backend
 function initMTATD()
+    -- Initial checks
+    if isBrowserDomainBlocked and isBrowserDomainBlocked("localhost") then
+        outputChatBox("Please add 'localhost' to your custom whitelist!", 255, 0, 0)
+        return
+    end
+
+    -- Launch the backend
     backend = MTATD.Backend:new(MTATD.Host, MTATD.Port)
 end
 

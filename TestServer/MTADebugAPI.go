@@ -2,6 +2,8 @@ package main
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"encoding/json"
 
@@ -18,7 +20,8 @@ type MTADebugAPI struct {
 	PendingEval string
 	EvalResult  string
 
-	Info debugeeInfo
+	Info      debugeeInfo
+	MTAServer *MTAServer
 }
 
 type debugBreakpoint struct {
@@ -44,9 +47,10 @@ func (bp *debugBreakpoint) equals(other *debugBreakpoint) bool {
 	return bp.File == other.File && bp.Line == other.Line
 }
 
-func NewMTADebugAPI(router *mux.Router) *MTADebugAPI {
+func NewMTADebugAPI(router *mux.Router, mtaServer *MTAServer) *MTADebugAPI {
 	// Create instance
 	api := new(MTADebugAPI)
+	api.MTAServer = mtaServer
 
 	api.Breakpoints = []debugBreakpoint{}
 	api.ServerContext.ResumeMode = 0 // ResumeMode.Resume
@@ -165,6 +169,11 @@ func (api *MTADebugAPI) handlerSetInfo(res http.ResponseWriter, req *http.Reques
 	if err != nil {
 		panic(err)
 	} else {
+		if api.Info.ResourcePath != "" {
+			// Check if bundle is up to date
+			api.MTAServer.UpdateDebugLuaBundle(api.MTAServer.GetResourcePath()+api.Info.ResourcePath+"MTATD.bundle.lua", filepath.Dir(os.Args[0])+"./MTATD.bundle.lua")
+		}
+
 		json.NewEncoder(res).Encode(&api.Info)
 	}
 }

@@ -37,7 +37,7 @@ func main() {
 
 	// Initialise APIs
 	NewMTAUnitAPI(router.PathPrefix("/MTAUnit").Subrouter())
-	NewMTADebugAPI(router.PathPrefix("/MTADebug").Subrouter())
+	NewMTADebugAPI(router.PathPrefix("/MTADebug").Subrouter(), server)
 	NewMTAServerAPI(router.PathPrefix("/MTAServer").Subrouter(), server)
 
 	// Start MTA server

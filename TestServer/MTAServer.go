@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -170,4 +171,33 @@ func (server *MTAServer) ToggleTimeoutPrevention(enabled bool) {
 			panic(err)
 		}
 	}
+}
+
+func (server *MTAServer) UpdateDebugLuaBundle(path string, originalPath string) {
+	fileContent, err := ioutil.ReadFile(path)
+	if err != nil {
+		//panic(err)
+		return
+	}
+
+	originalFileContent, err := ioutil.ReadFile(originalPath)
+	if err != nil {
+		//panic(err)
+		return
+	}
+
+	if bytes.Compare(fileContent, originalFileContent) != 0 {
+		fmt.Printf("\n\nYour debug bundle is not up-to-date. Updating it automatically...\n\n")
+
+		err = ioutil.WriteFile(path, originalFileContent, 0666)
+		if err != nil {
+			fmt.Println("An error occured while updating the debug bundle: " + err.Error())
+		} else {
+			fmt.Println("Successfully updated the debug bundle!")
+		}
+	}
+}
+
+func (server *MTAServer) GetResourcePath() string {
+	return filepath.Dir(server.Path) + "/mods/deathmatch/resources/"
 }

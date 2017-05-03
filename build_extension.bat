@@ -11,7 +11,8 @@ cd ..
 rem Create Lua bundle
 cd LuaLibrary
 python Minify.py 0
+move MTATD.bundle.lua ..\VSCode_Extension\MTATD.bundle.lua
 
 rem Build VSCode extension vsix
-cd ../VSCode_Extension
+cd ..\VSCode_Extension
 vsce package

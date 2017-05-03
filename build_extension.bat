@@ -2,6 +2,7 @@
 
 rem Build Go DebugServer
 cd TestServer
+set GOARCH=386
 go build -o ../VSCode_Extension/DebugServer.exe main.go MTADebugAPI.go MTAServer.go MTAServerAPI.go MTAUnitAPI.go
 
 rem Compress binary

@@ -16,7 +16,7 @@ export function activate(context: vscode.ExtensionContext) {
     // The command has been defined in the package.json file
     // Now provide the implementation of the command with  registerCommand
     // The commandId parameter must match the command field in package.json
-    let disposable = vscode.commands.registerCommand('extension.startMTA', () => {
+    context.subscriptions.push(vscode.commands.registerCommand('extension.startMTA', () => {
         // The code you place here will be executed every time your command is executed
         const config = vscode.workspace.getConfiguration('launch');
         let info = config.get<Array<any>>('configurations');
@@ -64,9 +64,21 @@ export function activate(context: vscode.ExtensionContext) {
             const path = normalize(serverpath + '/MTA Server.exe');
             exec(`start "MTA:SA Server [SCRIPT-DEBUG]" "${extensionPath}\\DebugServer.exe" "${path}" 51237`);
         });
-    });
+    }));
 
-    context.subscriptions.push(disposable);
+    context.subscriptions.push(vscode.commands.registerCommand('extension.addMTATDBundle', () => {
+        // Get extension path (the MTATD bundle lays there)
+        const extensionPath = vscode.extensions.getExtension('jusonex.mtatd').extensionPath;
+        const workspacePath = vscode.workspace.rootPath;
+
+        if (!extensionPath || !workspacePath || extensionPath == '' || workspacePath == '') {
+            vscode.window.showErrorMessage('Please open a folder/workspace first!');
+            return;
+        }
+
+        // Copy file
+        fs.createReadStream(`${extensionPath}/MTATD.bundle.lua`).pipe(fs.createWriteStream(`${workspacePath}/MTATD.bundle.lua`));
+    }));
 }
 
 // this method is called when your extension is deactivated

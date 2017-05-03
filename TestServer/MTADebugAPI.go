@@ -128,19 +128,27 @@ func (api *MTADebugAPI) handlerGetResumeModeClient(res http.ResponseWriter, req 
 }
 
 func (api *MTADebugAPI) handlerSetResumeModeServer(res http.ResponseWriter, req *http.Request) {
-	err := json.NewDecoder(req.Body).Decode(&api.ServerContext)
+	// Create an empty context (Decode merges the structures instead of fully overwriting)
+	context := debugContext{}
+
+	err := json.NewDecoder(req.Body).Decode(&context)
 	if err != nil {
 		panic(err)
 	} else {
+		api.ServerContext = context
 		json.NewEncoder(res).Encode(&api.ServerContext)
 	}
 }
 
 func (api *MTADebugAPI) handlerSetResumeModeClient(res http.ResponseWriter, req *http.Request) {
-	err := json.NewDecoder(req.Body).Decode(&api.ClientContext)
+	// Create an empty context (Decode merges the structures instead of fully overwriting)
+	context := debugContext{}
+
+	err := json.NewDecoder(req.Body).Decode(&context)
 	if err != nil {
 		panic(err)
 	} else {
+		api.ClientContext = context
 		json.NewEncoder(res).Encode(&api.ClientContext)
 	}
 }

@@ -28,6 +28,7 @@ function MTATD.MTADebug:constructor(backend)
     self._breakpoints = {}
     self._resumeMode = ResumeMode.Resume
     self._stepOverStackSize = 0
+    self._ignoreGlobalList = self:_composeGlobalIgnoreList()
 
     -- Enable development mode
     setDevelopmentMode(true)
@@ -312,10 +313,13 @@ function MTATD.MTADebug:_getGlobalVariables()
 
     for k, v in pairs(_G) do
         if type(v) ~= "function" and type(k) == "string" then
-            counter = counter + 1
-            
-            if counter <= 50 then
-                variables[k] = tostring(v)
+            -- Ignore variables in ignore list
+            if not self._ignoreGlobalList[k] then
+                counter = counter + 1
+                
+                if counter <= 50 then
+                    variables[k] = tostring(v)
+                end
             end
         end
     end
@@ -372,4 +376,23 @@ function MTATD.MTADebug:_runString(codeString)
 	end
 	
 	return true
+end
+
+-----------------------------------------------------------
+-- Composes the ignore list for global variables
+-- (ignores all functions that are available before the
+-- actual script start)
+--
+-- Returns a key-ed table that contains the ignore list
+-----------------------------------------------------------
+function MTATD.MTADebug:_composeGlobalIgnoreList()
+    -- Put all elements below _G into the ignore list
+    -- since the Debugger is the first script that is executed, it's absolutely fine
+    local ignoreList = {}
+
+    for k, v in pairs(_G) do
+        ignoreList[k] = true -- Use 'pseudo-set' for faster access
+    end
+
+    return ignoreList
 end

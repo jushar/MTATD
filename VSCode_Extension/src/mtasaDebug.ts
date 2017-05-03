@@ -245,7 +245,7 @@ class MTASADebugSession extends DebugSession {
 		this._currentThreadId = args.threadId;
 		
 		// Only the current stack frame is supported for now
-		const currentFilePath = this._resourcesPath + debugContext.file;
+		const currentFilePath = this._resourcePath + debugContext.file.match(/(?:\[.*\]\/)?.*?\/(.*)$/)[1];
 		frames.push(new StackFrame(0, 'Frame 0', new Source(basename(currentFilePath),
 				this.convertDebuggerPathToClient(currentFilePath)),
 				this.convertDebuggerLineToClient(debugContext.line), 0));
@@ -447,7 +447,7 @@ class MTASADebugSession extends DebugSession {
 	 */
 	private getRelativeResourcePath(absolutePath: string) {
 		//const relativePath = normalize(absolutePath).toLowerCase().replace(this._resourcePath.toLowerCase(), '');
-		const matches = normalize(absolutePath).replace(/\\/g, '/').toLowerCase().match(/.*?resources\/.*\/(.*)$/);
+		const matches = normalize(absolutePath).replace(/\\/g, '/').toLowerCase().match(/.*?resources\/(?:\[.*\]\/)?.*?\/(.*)$/);
 		const relativePath: string = matches.length > 0 ? matches[1] : absolutePath;
 
 		return relativePath;

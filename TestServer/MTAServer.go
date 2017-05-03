@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 )
 
@@ -141,4 +142,32 @@ func (server *MTAServer) GetLog() string {
 	})
 
 	return buffer.String()
+}
+
+func (server *MTAServer) ToggleTimeoutPrevention(enabled bool) {
+	serverDirectory := filepath.Dir(server.Path)
+
+	if enabled {
+		// Server
+		file, err := os.OpenFile(serverDirectory+"/timeout.longtime", os.O_RDONLY|os.O_CREATE, 0666)
+		if err == nil {
+			file.Close()
+		}
+
+		// Client
+		file, err = os.OpenFile(serverDirectory+"/../MTA/timeout.longtime", os.O_RDONLY|os.O_CREATE, 0666)
+		if err == nil {
+			file.Close()
+		}
+	} else {
+		err := os.Remove(serverDirectory + "/timeout.longtime") // Server
+		if err != nil {
+			panic(err)
+		}
+
+		err = os.Remove(serverDirectory + "/../MTA/timeout.longtime") // Client
+		if err != nil {
+			panic(err)
+		}
+	}
 }

@@ -32,6 +32,9 @@ func main() {
 	// Init MTA server
 	server := NewMTAServer(os.Args[1])
 
+	// Enable timeout prevention
+	server.ToggleTimeoutPrevention(true)
+
 	// Initialise APIs
 	NewMTAUnitAPI(router.PathPrefix("/MTAUnit").Subrouter())
 	NewMTADebugAPI(router.PathPrefix("/MTADebug").Subrouter())

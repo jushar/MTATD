@@ -101,10 +101,10 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
 
     -- Get some debug info
     local debugInfo = debug.getinfo(3, "S")
-    debugInfo.short_src = debugInfo.short_src:gsub("\\", "/")
+    local sourcePath =  debugInfo.source:gsub("\\", "/"):sub(2) -- Cut off @ (first character)
 
     -- Is there a breakpoint and pending line step?
-    if (not self:hasBreakpoint(debugInfo.short_src, nextLineNumber) and self._resumeMode ~= ResumeMode.StepInto)
+    if (not self:hasBreakpoint(sourcePath, nextLineNumber) and self._resumeMode ~= ResumeMode.StepInto)
         and (self._resumeMode ~= ResumeMode.StepOver or self._stepOverStackSize > 0) then
 
         -- Continue normally
@@ -116,7 +116,7 @@ function MTATD.MTADebug:_hookFunction(hookType, nextLineNumber)
     -- Tell backend that we reached a breakpoint
     self._backend:request("MTADebug/set_resume_mode"..RequestSuffix, {
         resume_mode = ResumeMode.Paused,
-        current_file = debugInfo.short_src,
+        current_file = sourcePath,
         current_line = nextLineNumber,
 
         local_variables = self:_getLocalVariables(),

@@ -447,7 +447,7 @@ class MTASADebugSession extends DebugSession {
 	 */
 	private getRelativeResourcePath(absolutePath: string) {
 		//const relativePath = normalize(absolutePath).toLowerCase().replace(this._resourcePath.toLowerCase(), '');
-		const matches = normalize(absolutePath).replace(/\\/g, '/').toLowerCase().match(/.*?resources\/.*?\/(.*)$/);
+		const matches = normalize(absolutePath).replace(/\\/g, '/').toLowerCase().match(/.*?resources\/.*\/(.*)$/);
 		const relativePath: string = matches.length > 0 ? matches[1] : absolutePath;
 
 		return relativePath;

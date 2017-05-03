@@ -1,7 +1,7 @@
 # Change Log
 ## 1.1
 - Fixed concurrent debugging on server and client
-- Add edbreakpoints correction
+- Added breakpoints correction
 - Ignored MTA's and Lua global variables
 - Automatically create _timeout prevention files_
 - Fixed long paths being cut off

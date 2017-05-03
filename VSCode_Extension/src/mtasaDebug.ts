@@ -175,7 +175,6 @@ class MTASADebugSession extends DebugSession {
 	 */
 	protected setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments): void {
 		const path = args.source.path;
-		const clientLines = args.lines;
 
 		// Clear old breakpoints
 		request(this._backendUrl + "/MTADebug/clear_breakpoints")
@@ -185,8 +184,8 @@ class MTASADebugSession extends DebugSession {
 
 		// Verify breakpoint locations
 		const breakpoints = new Array<Breakpoint>();
-		for (let i = 0; i < clientLines.length; ++i) {
-			let l = this.convertClientLineToDebugger(clientLines[i]);
+		args.breakpoints.forEach((sourceBreakpoint) => {
+			let l = this.convertClientLineToDebugger(sourceBreakpoint.line);
 
 			if (l < lines.length) {
 				// If a line is empty or starts with '--' we don't allow to set a breakpoint but move the breakpoint down
@@ -197,11 +196,10 @@ class MTASADebugSession extends DebugSession {
 				}
 			}
 
-			// Create breakpoint
 			const bp = <DebugProtocol.Breakpoint> new Breakpoint(true, this.convertDebuggerLineToClient(l));
 			bp.id = this._breakpointId++;
 			breakpoints.push(bp);
-		}
+		});
 		this._breakPoints.set(path, breakpoints);
 
 		// Send all breakpoints to backend

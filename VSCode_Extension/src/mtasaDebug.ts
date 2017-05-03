@@ -181,20 +181,21 @@ class MTASADebugSession extends DebugSession {
 		request(this._backendUrl + "/MTADebug/clear_breakpoints")
 
 		// Read file contents into array for direct access
-		//const lines = readFileSync(path).toString().split('\n');
+		const lines = readFileSync(path).toString().split('\n');
 
+		// Verify breakpoint locations
 		const breakpoints = new Array<Breakpoint>();
-
-		// verify breakpoint locations
-		for (let i = 0; i < clientLines.length; i++) {
+		for (let i = 0; i < clientLines.length; ++i) {
 			let l = this.convertClientLineToDebugger(clientLines[i]);
 
-			/*if (l < lines.length) {
-				// If a line is empty or starts with '+' we don't allow to set a breakpoint but move the breakpoint down
-				const line = lines[l].trim();
-				if (line.length == 0 || line.indexOf("--") == 0)
-					l++;
-			}*/
+			if (l < lines.length) {
+				// If a line is empty or starts with '--' we don't allow to set a breakpoint but move the breakpoint down
+				let line = lines[l - 1].trim();
+				while (l < lines.length && (line.length == 0 || line.match(/^\s*--/))) {
+					++l;
+					line = lines[l - 1].trim();
+				}
+			}
 
 			// Create breakpoint
 			const bp = <DebugProtocol.Breakpoint> new Breakpoint(true, this.convertDebuggerLineToClient(l));
@@ -212,7 +213,7 @@ class MTASADebugSession extends DebugSession {
 						file: this.getRelativeResourcePath(path),
 						line: this.convertClientLineToDebugger(breakpoint.line)
 					}
-				});
+				}, () => {}); // Pass empty function to use the asynchronous version
 			}
 		});
 

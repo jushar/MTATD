@@ -44,11 +44,8 @@ func main() {
 	// Start HTTP server
 	fmt.Println("Launching HTTP server...")
 
-	// Handle normally
-	//http.Handle("/", router)
-
-	// Handle via middleware
-	http.Handle("/", logMiddleware(router))
+	http.Handle("/", router) // Handle normally
+	//http.Handle("/", logMiddleware(router)) // Handle via middleware
 
 	// Listen in a secondary goroutine
 	go http.ListenAndServe(":"+os.Args[2], nil)

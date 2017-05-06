@@ -255,9 +255,9 @@ function MTATD.MTADebug:_getResourceBasePath()
 
     if triggerClientEvent then -- Is server?
         local organizationalPath = getResourceOrganizationalPath(thisResource)
-        return (organizationalPath ~= "" and organizationalPath.."/" or "")..getResourceName(thisResource).."/"
+        return (organizationalPath ~= "" and organizationalPath.."/" or "")..getResourceName(thisResource):lower().."/"
     else
-        return getResourceName(thisResource).."/"
+        return getResourceName(thisResource):lower().."/"
     end
 end
 

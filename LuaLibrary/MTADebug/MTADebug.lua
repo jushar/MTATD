@@ -30,6 +30,7 @@ function MTATD.MTADebug:constructor(backend)
     self._resumeMode = ResumeMode.Resume
     self._stepOverStackSize = 0
     self._ignoreGlobalList = self:_composeGlobalIgnoreList()
+    self._ignoredEvents = {}
 
     -- Enable development mode
     setDevelopmentMode(true)
@@ -50,7 +51,10 @@ function MTATD.MTADebug:constructor(backend)
     self:_fetchBreakpoints(true)
 
     -- Install debug hook
-    debug.sethook(function(...) self:_hookFunction(...) end, "crl")
+    self._debugHookFunction = function(...) self:_hookFunction(...) end
+    self:toggleDebugHook(true)
+    self._eventHookFunctionEnable = function() self:toggleDebugHook(true) end
+    self._eventHookFunctionDisable = function() self:toggleDebugHook(false) end
 
     -- Update things once per 3 seconds asynchronously
     self._updateTimer = setTimer(
@@ -75,6 +79,19 @@ end
 function MTATD.MTADebug:destructor()
     if self._updateTimer and isTimer(self._updateTimer) then
         killTimer(self._updateTimer)
+    end
+end
+
+-----------------------------------------------------------
+-- Enables or disables the debug hook
+--
+-- enabled (bool): true to enable the hook, false to disable
+-----------------------------------------------------------
+function MTATD.MTADebug:toggleDebugHook(enabled)
+    if enabled then
+        debug.sethook(self._debugHookFunction, "crl")
+    else
+        debug.sethook()
     end
 end
 
@@ -396,4 +413,16 @@ function MTATD.MTADebug:_composeGlobalIgnoreList()
     end
 
     return ignoreList
+end
+
+function MTATD.MTADebug:_updateIgnoredEvents(ignoredEvents)
+    self._ignoredEvents = ignoredEvents
+
+    -- Remove old hooks
+    removeDebugHook("preEvent", self._eventHookFunctionDisable)
+    removeDebugHook("postEvent", self._eventHookFunctionEnable)
+
+    -- Add new event hooks
+    addDebugHook("preEvent", self._eventHookFunctionDisable, self._ignoredEvents)
+    addDebugHook("postEvent", self._eventHookFunctionEnable, self._ignoredEvents)
 end
